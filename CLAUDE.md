@@ -85,13 +85,8 @@ hatosmart/
 - Fondo claro: #f5f5f5
 
 ## Estado actual del proyecto
-### Sesión 1 — Completada
-- [x] Esqueleto del proyecto con Vite + React + Tailwind
-- [x] Configuración de vite-plugin-pwa (manifest SVG, autoUpdate, generateSW)
-- [x] Layout mobile-first con BottomNav (5 ítems, botón central FAB verde)
-- [x] Componentes ui/ base: Button, Input, Select, Card, EmptyState, LoadingSpinner, Badge, BottomNav
-- [x] i18next configurado con locales/es-CO (5 namespaces: common, animals, repro, milk, health)
-- [ ] Primer deploy a Vercel (pendiente — conectar en Vercel dashboard)
+### Sesión 2 — Pendiente
+(por definir)
 
 ### Sesiones anteriores completadas
-- **Sesión 1**: Esqueleto completo. Vite+React+Tailwind+PWA, rutas React Router, stores Zustand (session/farm/sync), lib/db.js (Dexie v1), lib/sync/ (queue+engine), lib/rules/ (reproduction, categories, weights), SyncBadge, AppLayout, páginas placeholder para todas las rutas, i18n es-CO. Build: ✅ 89 módulos, 0 errores.
+- **Sesión 1** — 14 jun 2026: Esqueleto completo. 50 archivos creados. Vite+React+Tailwind+PWA, rutas React Router, stores Zustand (session/farm/sync), lib/db.js (Dexie v1), lib/sync/ (queue+engine), lib/rules/ (reproduction, categories, weights), SyncBadge, AppLayout, páginas placeholder para todas las rutas, i18n es-CO (5 namespaces). Build: ✅ 89 módulos, 0 errores. PWA desplegada en Vercel: https://hato-smart.vercel.app
