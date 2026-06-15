@@ -1,0 +1,25 @@
+{
+  "title": "Ordeño",
+  "record": "Registrar ordeño",
+  "sessions": {
+    "morning": "Mañana",
+    "afternoon": "Tarde",
+    "evening": "Noche"
+  },
+  "fields": {
+    "date": "Fecha",
+    "session": "Sesión",
+    "animal": "Animal",
+    "liters": "Litros",
+    "notes": "Observaciones"
+  },
+  "summary": {
+    "total_today": "Total hoy",
+    "average_per_cow": "Promedio por vaca",
+    "cows_milked": "Vacas ordeñadas"
+  },
+  "empty": {
+    "title": "Sin registros de ordeño",
+    "description": "Registra la producción de leche del día."
+  }
+}

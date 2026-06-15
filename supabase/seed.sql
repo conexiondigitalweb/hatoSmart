@@ -1,0 +1,2 @@
+-- Seed data for HatoSmart development
+-- Run after migrations: supabase db reset --db-url <url>

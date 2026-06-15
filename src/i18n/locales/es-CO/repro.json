@@ -1,0 +1,41 @@
+{
+  "title": "Reproducción",
+  "event_types": {
+    "heat": "Celo",
+    "service": "Servicio",
+    "pregnancy_check": "Diagnóstico de preñez",
+    "calving": "Parto",
+    "abortion": "Aborto",
+    "dry_off": "Secado"
+  },
+  "service_types": {
+    "natural": "Monta natural",
+    "ai": "Inseminación artificial",
+    "et": "Transferencia de embriones"
+  },
+  "pregnancy": {
+    "positive": "Preñada",
+    "negative": "Vacía",
+    "doubtful": "Dudosa"
+  },
+  "fields": {
+    "event_type": "Tipo de evento",
+    "event_date": "Fecha del evento",
+    "animal": "Animal",
+    "bull_semen": "Toro / Pajilla",
+    "vet": "Veterinario",
+    "result": "Resultado",
+    "fpp": "Fecha probable de parto",
+    "notes": "Observaciones"
+  },
+  "alerts": {
+    "heat_due": "Posible celo",
+    "pregnancy_check_due": "Diagnóstico pendiente",
+    "dry_off_due": "Secado próximo",
+    "calving_due": "Parto próximo"
+  },
+  "empty": {
+    "title": "Sin eventos reproductivos",
+    "description": "Registra el primer evento reproductivo."
+  }
+}

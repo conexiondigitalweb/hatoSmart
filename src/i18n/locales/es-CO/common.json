@@ -1,0 +1,61 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "animals": "Animales",
+    "register": "Registrar",
+    "alerts": "Alertas",
+    "more": "Más"
+  },
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "add": "Agregar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "confirm": "Confirmar",
+    "back": "Volver",
+    "close": "Cerrar",
+    "view": "Ver",
+    "select": "Seleccionar"
+  },
+  "sync": {
+    "synced": "Sincronizado",
+    "pending_one": "{{count}} pendiente",
+    "pending_other": "{{count}} pendientes",
+    "offline": "Sin conexión",
+    "error": "Error de sincronización"
+  },
+  "modules": {
+    "dashboard": "Inicio",
+    "animals": "Animales",
+    "milk": "Ordeño",
+    "weights": "Pesajes",
+    "reproduction": "Reproducción",
+    "health": "Sanidad",
+    "alerts": "Alertas",
+    "farms": "Fincas",
+    "settings": "Configuración"
+  },
+  "register": {
+    "title": "¿Qué deseas registrar?",
+    "milk": "Ordeño",
+    "milk_desc": "Producción de leche del día",
+    "weight": "Pesaje",
+    "weight_desc": "Peso de uno o varios animales",
+    "repro": "Evento reproductivo",
+    "repro_desc": "Celo, servicio, preñez o parto",
+    "health": "Sanidad",
+    "health_desc": "Vacuna, desparasitación o tratamiento"
+  },
+  "empty": {
+    "title": "Sin registros",
+    "description": "Aún no hay información aquí."
+  },
+  "error": {
+    "generic": "Ocurrió un error. Intenta de nuevo.",
+    "network": "Sin conexión a internet."
+  },
+  "loading": "Cargando..."
+}

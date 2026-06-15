@@ -1,0 +1,33 @@
+{
+  "title": "Sanidad",
+  "event_types": {
+    "vaccine": "Vacuna",
+    "deworming": "Desparasitación",
+    "treatment": "Tratamiento",
+    "surgery": "Cirugía",
+    "hoof_trimming": "Pedicura",
+    "other": "Otro"
+  },
+  "fields": {
+    "event_type": "Tipo",
+    "date": "Fecha",
+    "animal": "Animal",
+    "product": "Producto / Vacuna",
+    "dose": "Dosis",
+    "route": "Vía de aplicación",
+    "vet": "Veterinario",
+    "next_date": "Próxima aplicación",
+    "notes": "Observaciones"
+  },
+  "routes": {
+    "im": "Intramuscular",
+    "sc": "Subcutánea",
+    "iv": "Intravenosa",
+    "oral": "Oral",
+    "topical": "Tópica"
+  },
+  "empty": {
+    "title": "Sin eventos sanitarios",
+    "description": "Registra vacunas, desparasitaciones y tratamientos."
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "title": "Mis animales",
+  "add": "Agregar animal",
+  "search_placeholder": "Buscar por nombre o arete...",
+  "categories": {
+    "cow": "Vaca",
+    "heifer": "Novilla",
+    "calf_female": "Ternera",
+    "bull": "Toro",
+    "steer": "Novillo",
+    "calf_male": "Ternero"
+  },
+  "status": {
+    "active": "Activo",
+    "dry": "Seca",
+    "pregnant": "Preñada",
+    "in_heat": "En celo",
+    "sick": "Enferma",
+    "sold": "Vendida",
+    "dead": "Muerta"
+  },
+  "fields": {
+    "name": "Nombre",
+    "tag": "Arete / Código",
+    "breed": "Raza",
+    "sex": "Sexo",
+    "birth_date": "Fecha de nacimiento",
+    "category": "Categoría",
+    "mother": "Madre",
+    "father": "Padre",
+    "weight": "Peso (kg)",
+    "notes": "Observaciones"
+  },
+  "sex": {
+    "female": "Hembra",
+    "male": "Macho"
+  },
+  "empty": {
+    "title": "Sin animales registrados",
+    "description": "Agrega tu primer animal para comenzar."
+  }
+}
