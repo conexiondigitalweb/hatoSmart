@@ -89,4 +89,4 @@ hatosmart/
 (por definir)
 
 ### Sesiones anteriores completadas
-- **Sesión 1** — 14 jun 2026: Esqueleto completo. 50 archivos creados. Vite+React+Tailwind+PWA, rutas React Router, stores Zustand (session/farm/sync), lib/db.js (Dexie v1), lib/sync/ (queue+engine), lib/rules/ (reproduction, categories, weights), SyncBadge, AppLayout, páginas placeholder para todas las rutas, i18n es-CO (5 namespaces). Build: ✅ 89 módulos, 0 errores. PWA desplegada en Vercel: https://hato-smart.vercel.app
+- **Sesión 1** — 14 jun 2026: PWA desplegada en https://hato-smart.vercel.app. 50 archivos. Logo y marca aplicados en cabecera. Esqueleto completo: Vite+React+Tailwind+PWA, rutas React Router, stores Zustand (session/farm/sync), Dexie v1, sync queue+engine, rules (reproduction, categories, weights), SyncBadge, AppLayout, páginas placeholder, i18n es-CO (5 namespaces). Build: ✅ 89 módulos, 0 errores.
