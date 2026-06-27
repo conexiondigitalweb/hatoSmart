@@ -60,8 +60,12 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#2b3240] flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/apple-touch-icon.png" alt="HatoSmart" className="w-16 h-16 mx-auto mb-3" />
-          <h1 className="text-white text-2xl font-bold">HatoSmart</h1>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <img src="/apple-touch-icon.png" alt="HatoSmart" className="w-10 h-10" />
+            <span className="text-2xl font-bold">
+              <span className="text-[#2b3240]">Hato</span><span className="text-[#3dbf5e]">Smart</span>
+            </span>
+          </div>
           <p className="text-gray-400 text-sm mt-1">Gestión ganadera inteligente</p>
         </div>
 
