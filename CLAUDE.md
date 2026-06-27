@@ -85,6 +85,17 @@ hatosmart/
 - Fondo claro: #f5f5f5
 
 ## Estado actual del proyecto
+### Sesión 3 — Completada (27 jun 2026)
+- LoginPage: zod + supabase.auth.signInWithPassword, manejo de errores, routing post-login
+- SignupPage: validación completa, supabase.auth.signUp, pantalla de confirmación de email
+- OnboardingWizard: 3 pasos (nombre, orientación/moneda/tamaño, confirmación) → crea account+farm+membership en Supabase + seed demo
+- FarmSelector: lista de fincas para usuarios multi-finca
+- PrivateRoute: guarda rutas privadas, spinner de carga, redirige a /login o /onboarding
+- HomePage: métricas reales de Dexie (litros, vacas ordeñadas, conteo por categoría, alertas próximas 15 días), empty states
+- MorePage: logout funcional (signOut + limpiar stores + redirect)
+- App.jsx: árbol completo de rutas público/guardado/privado
+- Build: ✅ 453 módulos, 0 errores
+
 ### Sesión 2 — Completada (27 jun 2026)
 - Supabase conectado: .env.local + cliente con validación de env vars
 - 17 migraciones SQL: accounts, profiles, farms, memberships, animals, repro_events, milk_records, milk_individual, weighings, health_events, health_event_animals, alerts, audit_log, RLS, triggers, índices y seed demo
