@@ -85,8 +85,13 @@ hatosmart/
 - Fondo claro: #f5f5f5
 
 ## Estado actual del proyecto
-### Sesión 2 — Pendiente
-(por definir)
+### Sesión 2 — Completada (27 jun 2026)
+- Supabase conectado: .env.local + cliente con validación de env vars
+- 17 migraciones SQL: accounts, profiles, farms, memberships, animals, repro_events, milk_records, milk_individual, weighings, health_events, health_event_animals, alerts, audit_log, RLS, triggers, índices y seed demo
+- all_migrations.sql consolidado para ejecutar en SQL Editor de Supabase
+- Dexie v2: esquema espeja tablas remotas con sync_status/last_synced_at
+- sessionStore: onAuthStateChange + init() llamado en App.jsx
+- Build: ✅ 132 módulos, 0 errores
 
 ### Sesiones anteriores completadas
 - **Sesión 1** — 14 jun 2026: PWA desplegada en https://hato-smart.vercel.app. 50 archivos. Logo y marca aplicados en cabecera. Esqueleto completo: Vite+React+Tailwind+PWA, rutas React Router, stores Zustand (session/farm/sync), Dexie v1, sync queue+engine, rules (reproduction, categories, weights), SyncBadge, AppLayout, páginas placeholder, i18n es-CO (5 namespaces). Build: ✅ 89 módulos, 0 errores.
