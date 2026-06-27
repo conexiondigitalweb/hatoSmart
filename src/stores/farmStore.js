@@ -6,4 +6,5 @@ export const useFarmStore = create((set) => ({
   setActiveFarm: (farm) => set({ activeFarm: farm }),
   setFarms: (farms) => set({ farms }),
   addFarm: (farm) => set((state) => ({ farms: [...state.farms, farm] })),
+  clearFarms: () => set({ activeFarm: null, farms: [] }),
 }))

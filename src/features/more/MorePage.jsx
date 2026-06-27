@@ -1,17 +1,30 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../../lib/supabase'
+import { useSessionStore } from '../../stores/sessionStore'
+import { useFarmStore } from '../../stores/farmStore'
 import Card from '../../components/ui/Card'
 
 const menuItems = [
-  { emoji: '🏡', label: 'Mis fincas', to: '/fincas' },
+  { emoji: '🏡', label: 'Mis fincas', to: '/seleccionar-finca' },
   { emoji: '⚙️', label: 'Configuración', to: '/configuracion' },
   { emoji: '👤', label: 'Mi perfil', to: '/perfil' },
-  { emoji: '🚪', label: 'Cerrar sesión', to: '/login' },
 ]
 
 export default function MorePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const clearSession = useSessionStore((s) => s.clearSession)
+  const setFarms = useFarmStore((s) => s.setFarms)
+  const setActiveFarm = useFarmStore((s) => s.setActiveFarm)
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    clearSession()
+    setFarms([])
+    setActiveFarm(null)
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="p-4 flex flex-col gap-4">
@@ -28,6 +41,14 @@ export default function MorePage() {
             <span className="ml-auto text-gray-300 text-lg">›</span>
           </Card>
         ))}
+
+        <Card
+          className="flex items-center gap-4 min-h-[56px] border-red-100"
+          onClick={handleLogout}
+        >
+          <span className="text-2xl">🚪</span>
+          <span className="font-medium text-red-500">Cerrar sesión</span>
+        </Card>
       </div>
     </div>
   )
