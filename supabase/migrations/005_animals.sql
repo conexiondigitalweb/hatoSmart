@@ -1,0 +1,31 @@
+create table if not exists animals (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references accounts,
+  farm_id uuid not null references farms,
+  internal_code text,
+  tag_number text,
+  name text,
+  breed text,
+  sex text not null check (sex in ('female','male')),
+  birth_date date,
+  category text check (category in ('calf','heifer','cow','young_bull','bull','steer')),
+  status text not null default 'active'
+    check (status in ('active','sold','dead','culled','transferred','quarantine')),
+  status_date date,
+  status_notes text,
+  origin text not null default 'born'
+    check (origin in ('born','purchased','transferred')),
+  mother_id uuid references animals,
+  father_id uuid references animals,
+  external_father text,
+  lot text,
+  photo_url text,
+  registry_number text,
+  registry_association text,
+  breeder_origin text,
+  notes text,
+  repro_status text check (repro_status in ('open','served','pregnant','dry','fresh')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);

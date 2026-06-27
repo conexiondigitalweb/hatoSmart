@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import AppLayout from './components/shared/AppLayout'
 import HomePage from './features/dashboard/HomePage'
@@ -7,8 +8,13 @@ import AlertsPage from './features/alerts/AlertsPage'
 import MorePage from './features/more/MorePage'
 import LoginPage from './features/auth/LoginPage'
 import SignupPage from './features/auth/SignupPage'
+import { useSessionStore } from './stores/sessionStore'
 
 export default function App() {
+  const init = useSessionStore((s) => s.init)
+
+  useEffect(() => { init() }, [init])
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
