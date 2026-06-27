@@ -5,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
-import Input from '../../components/ui/Input'
 
 const schema = z.object({
   full_name: z.string().min(1, 'Ingresa tu nombre').min(2, 'Mínimo 2 caracteres'),
@@ -22,25 +21,24 @@ const schema = z.object({
   path: ['confirm_password'],
 })
 
+const inputCls = (hasError) =>
+  `w-full min-h-[48px] px-4 py-3 rounded-xl border bg-white text-[#2b3240] text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3dbf5e] transition-shadow ${
+    hasError ? 'border-red-400' : 'border-gray-200'
+  }`
+
 const PWD_RULES = [
-  { label: 'Mínimo 8 caracteres',     test: (v) => v.length >= 8 },
-  { label: 'Al menos una mayúscula',  test: (v) => /[A-Z]/.test(v) },
-  { label: 'Al menos un número',      test: (v) => /[0-9]/.test(v) },
+  { label: 'Mínimo 8 caracteres',    test: (v) => v.length >= 8 },
+  { label: 'Al menos una mayúscula', test: (v) => /[A-Z]/.test(v) },
+  { label: 'Al menos un número',     test: (v) => /[0-9]/.test(v) },
 ]
 
-function PasswordRequirements({ value = '' }) {
+function Field({ label, error, children }) {
   return (
-    <ul className="flex flex-col gap-1 mt-1">
-      {PWD_RULES.map(({ label, test }) => {
-        const ok = test(value)
-        return (
-          <li key={label} className={`flex items-center gap-1.5 text-xs ${ok ? 'text-[#3dbf5e]' : 'text-gray-400'}`}>
-            <span>{ok ? '✓' : '✗'}</span>
-            {label}
-          </li>
-        )
-      })}
-    </ul>
+    <div className="flex flex-col gap-1">
+      <label className="text-sm font-medium text-gray-300">{label}</label>
+      {children}
+      {error && <span className="text-xs text-red-400">{error}</span>}
+    </div>
   )
 }
 
@@ -60,8 +58,8 @@ export default function SignupPage() {
     reValidateMode: 'onSubmit',
   })
 
-  const watchedValues = watch()
-  console.log('[SignupPage] watch:', watchedValues)
+  const pwdValue = watch('password') ?? ''
+  console.log('[SignupPage] watch:', watch())
 
   const onSubmit = async ({ full_name, email, password }) => {
     console.log('[SignupPage] onSubmit reached', { full_name, email })
@@ -73,11 +71,11 @@ export default function SignupPage() {
     })
 
     if (error) {
-      if (error.message.includes('already registered')) {
-        setServerError('Este correo ya está registrado. ¿Quieres iniciar sesión?')
-      } else {
-        setServerError(error.message)
-      }
+      setServerError(
+        error.message.includes('already registered')
+          ? 'Este correo ya está registrado. ¿Quieres iniciar sesión?'
+          : error.message
+      )
       return
     }
 
@@ -119,42 +117,51 @@ export default function SignupPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <Input
-            label="Nombre completo"
-            placeholder="Juan Pérez"
-            error={errors.full_name?.message}
-            className="bg-white"
-            {...register('full_name')}
-          />
-          <Input
-            label="Correo electrónico"
-            type="email"
-            placeholder="correo@ejemplo.com"
-            error={errors.email?.message}
-            className="bg-white"
-            {...register('email')}
-          />
+          <Field label="Nombre completo" error={errors.full_name?.message}>
+            <input
+              type="text"
+              placeholder="Juan Pérez"
+              className={inputCls(!!errors.full_name)}
+              {...register('full_name')}
+            />
+          </Field>
 
-          <div>
-            <Input
-              label="Contraseña"
+          <Field label="Correo electrónico" error={errors.email?.message}>
+            <input
+              type="email"
+              placeholder="correo@ejemplo.com"
+              className={inputCls(!!errors.email)}
+              {...register('email')}
+            />
+          </Field>
+
+          <Field label="Contraseña" error={errors.password?.message}>
+            <input
               type="password"
               placeholder="Mínimo 8 caracteres"
-              error={errors.password?.message}
-              className="bg-white"
+              className={inputCls(!!errors.password)}
               {...register('password')}
             />
-            <PasswordRequirements value={watchedValues.password ?? ''} />
-          </div>
+            <ul className="flex flex-col gap-1 mt-1">
+              {PWD_RULES.map(({ label, test }) => {
+                const ok = test(pwdValue)
+                return (
+                  <li key={label} className={`flex items-center gap-1.5 text-xs ${ok ? 'text-[#3dbf5e]' : 'text-gray-400'}`}>
+                    <span>{ok ? '✓' : '✗'}</span>{label}
+                  </li>
+                )
+              })}
+            </ul>
+          </Field>
 
-          <Input
-            label="Confirmar contraseña"
-            type="password"
-            placeholder="••••••••"
-            error={errors.confirm_password?.message}
-            className="bg-white"
-            {...register('confirm_password')}
-          />
+          <Field label="Confirmar contraseña" error={errors.confirm_password?.message}>
+            <input
+              type="password"
+              placeholder="••••••••"
+              className={inputCls(!!errors.confirm_password)}
+              {...register('confirm_password')}
+            />
+          </Field>
 
           {serverError && (
             <p className="text-red-400 text-sm text-center bg-red-900/20 rounded-lg px-3 py-2">

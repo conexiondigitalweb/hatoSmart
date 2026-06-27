@@ -6,12 +6,16 @@ import { z } from 'zod'
 import { supabase } from '../../lib/supabase'
 import { useFarmStore } from '../../stores/farmStore'
 import Button from '../../components/ui/Button'
-import Input from '../../components/ui/Input'
 
 const schema = z.object({
-  email: z.string().email('Correo inválido'),
+  email: z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
   password: z.string().min(1, 'Ingresa tu contraseña'),
 })
+
+const inputCls = (hasError) =>
+  `w-full min-h-[48px] px-4 py-3 rounded-xl border bg-white text-[#2b3240] text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3dbf5e] transition-shadow ${
+    hasError ? 'border-red-400' : 'border-gray-200'
+  }`
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -23,25 +27,29 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver: zodResolver(schema) })
+  } = useForm({
+    resolver: zodResolver(schema),
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
+  })
 
   const onSubmit = async ({ email, password }) => {
     setServerError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        setServerError('Correo o contraseña incorrectos.')
-      } else {
-        setServerError(error.message)
-      }
+      setServerError(
+        error.message.includes('Invalid login credentials')
+          ? 'Correo o contraseña incorrectos.'
+          : error.message
+      )
       return
     }
 
-    // Load farms for this user
+    const { data: { user } } = await supabase.auth.getUser()
     const { data: memberships } = await supabase
       .from('memberships')
       .select('farm_id, role, farms(*)')
-      .eq('user_id', (await supabase.auth.getUser()).data.user.id)
+      .eq('user_id', user.id)
 
     const farms = (memberships ?? []).map((m) => ({ ...m.farms, role: m.role }))
     setFarms(farms)
@@ -67,22 +75,27 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <Input
-            label="Correo electrónico"
-            type="email"
-            placeholder="correo@ejemplo.com"
-            error={errors.email?.message}
-            className="bg-white"
-            {...register('email')}
-          />
-          <Input
-            label="Contraseña"
-            type="password"
-            placeholder="••••••••"
-            error={errors.password?.message}
-            className="bg-white"
-            {...register('password')}
-          />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-300">Correo electrónico</label>
+            <input
+              type="email"
+              placeholder="correo@ejemplo.com"
+              className={inputCls(!!errors.email)}
+              {...register('email')}
+            />
+            {errors.email && <span className="text-xs text-red-400">{errors.email.message}</span>}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-300">Contraseña</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              className={inputCls(!!errors.password)}
+              {...register('password')}
+            />
+            {errors.password && <span className="text-xs text-red-400">{errors.password.message}</span>}
+          </div>
 
           {serverError && (
             <p className="text-red-400 text-sm text-center bg-red-900/20 rounded-lg px-3 py-2">
