@@ -235,60 +235,35 @@ export default function OnboardingWizard() {
     setLoading(true)
     setError('')
     try {
-      // Always fetch the live user from Supabase — store value can be stale after signup
-      const { data: { user: liveUser }, error: userErr } = await supabase.auth.getUser()
-      console.log('[Onboarding] getUser:', liveUser?.id, userErr)
-      if (userErr || !liveUser) throw new Error('Sesión no válida. Vuelve a iniciar sesión.')
+      const { data, error } = await supabase.rpc('create_account_and_farm', {
+        p_account_name: wizardData.name,
+        p_farm_name: wizardData.name,
+        p_farm_commercial_name: wizardData.commercial_name || wizardData.name,
+        p_orientation: wizardData.orientation,
+        p_currency: wizardData.currency,
+      })
 
-      const accountId = crypto.randomUUID()
-      const farmId = crypto.randomUUID()
+      if (error) throw error
 
-      // 1. Create account
-      const { error: accErr } = await supabase.from('accounts').insert({
-        id: accountId,
+      const { account_id, farm_id } = data
+
+      // Persist in Dexie for offline-first reads
+      await db.accounts.put({ id: account_id, sync_status: 'synced' })
+      await db.farms.put({
+        id: farm_id,
+        account_id,
         name: wizardData.name,
-        country: 'CO',
-        default_locale: 'es-CO',
-        owner_user_id: liveUser.id,
+        commercial_name: wizardData.commercial_name || null,
+        orientation: wizardData.orientation,
+        currency: wizardData.currency,
+        sync_status: 'synced',
       })
-      if (accErr) throw accErr
 
-      // 2. Create farm
-      const { data: farmRow, error: farmErr } = await supabase
-        .from('farms')
-        .insert({
-          id: farmId,
-          account_id: accountId,
-          name: wizardData.name,
-          commercial_name: wizardData.commercial_name || null,
-          orientation: wizardData.orientation,
-          currency: wizardData.currency,
-          country: 'CO',
-          locale: 'es-CO',
-        })
-        .select()
-        .single()
-      if (farmErr) throw farmErr
-
-      // 3. Create membership
-      const { error: memErr } = await supabase.from('memberships').insert({
-        account_id: accountId,
-        farm_id: farmId,
-        user_id: liveUser.id,
-        role: 'owner',
-      })
-      if (memErr) throw memErr
-
-      // 4. Load demo data
-      await supabase.rpc('create_demo_farm', { p_user_id: liveUser.id })
-
-      // 5. Persist farm in Dexie
-      await db.farms.put({ ...farmRow, sync_status: 'synced' })
-      await db.accounts.put({ id: accountId, owner_user_id: liveUser.id, sync_status: 'synced' })
-
-      // 6. Update stores and redirect
-      setFarms([farmRow])
-      setActiveFarm(farmRow)
+      const farm = { id: farm_id, account_id, name: wizardData.name,
+        commercial_name: wizardData.commercial_name || null,
+        orientation: wizardData.orientation, currency: wizardData.currency }
+      setFarms([farm])
+      setActiveFarm(farm)
       navigate('/')
     } catch (err) {
       setError(err.message ?? 'Error al crear la finca. Inténtalo de nuevo.')
