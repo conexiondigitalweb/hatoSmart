@@ -8,9 +8,9 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 
 const schema = z.object({
-  full_name: z.string().min(2, 'Ingresa tu nombre completo'),
-  email: z.string().email('Correo inválido'),
-  password: z.string().min(8, 'Mínimo 8 caracteres'),
+  full_name: z.string().min(1, 'Ingresa tu nombre').min(2, 'Mínimo 2 caracteres'),
+  email: z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
+  password: z.string().min(1, 'Ingresa una contraseña').min(8, 'Mínimo 8 caracteres'),
   confirm_password: z.string().min(1, 'Confirma tu contraseña'),
 }).refine((d) => d.password === d.confirm_password, {
   message: 'Las contraseñas no coinciden',
@@ -33,6 +33,7 @@ export default function SignupPage() {
   })
 
   const onSubmit = async ({ full_name, email, password }) => {
+    console.log('[SignupPage] onSubmit reached', { full_name, email })
     setServerError('')
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -81,13 +82,10 @@ export default function SignupPage() {
     <div className="min-h-screen bg-[#2b3240] flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <img src="/apple-touch-icon.png" alt="HatoSmart" className="w-10 h-10" />
-            <span className="text-2xl font-bold">
-              <span className="text-[#2b3240]">Hato</span><span className="text-[#3dbf5e]">Smart</span>
-            </span>
-          </div>
-          <p className="text-gray-400 text-sm mt-1">Es gratis para empezar</p>
+          <span className="text-3xl font-bold">
+            <span className="text-white">Hato</span><span className="text-[#3dbf5e]">Smart</span>
+          </span>
+          <p className="text-gray-400 text-sm mt-2">Es gratis para empezar</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
