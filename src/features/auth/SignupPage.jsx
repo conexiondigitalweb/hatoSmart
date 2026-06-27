@@ -11,7 +11,7 @@ const schema = z.object({
   full_name: z.string().min(2, 'Ingresa tu nombre completo'),
   email: z.string().email('Correo inválido'),
   password: z.string().min(8, 'Mínimo 8 caracteres'),
-  confirm_password: z.string(),
+  confirm_password: z.string().min(1, 'Confirma tu contraseña'),
 }).refine((d) => d.password === d.confirm_password, {
   message: 'Las contraseñas no coinciden',
   path: ['confirm_password'],
@@ -26,7 +26,11 @@ export default function SignupPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver: zodResolver(schema) })
+  } = useForm({
+    resolver: zodResolver(schema),
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
+  })
 
   const onSubmit = async ({ full_name, email, password }) => {
     setServerError('')
