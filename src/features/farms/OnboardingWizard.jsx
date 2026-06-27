@@ -235,6 +235,11 @@ export default function OnboardingWizard() {
     setLoading(true)
     setError('')
     try {
+      // Always fetch the live user from Supabase — store value can be stale after signup
+      const { data: { user: liveUser }, error: userErr } = await supabase.auth.getUser()
+      console.log('[Onboarding] getUser:', liveUser?.id, userErr)
+      if (userErr || !liveUser) throw new Error('Sesión no válida. Vuelve a iniciar sesión.')
+
       const accountId = crypto.randomUUID()
       const farmId = crypto.randomUUID()
 
@@ -244,7 +249,7 @@ export default function OnboardingWizard() {
         name: wizardData.name,
         country: 'CO',
         default_locale: 'es-CO',
-        owner_user_id: user.id,
+        owner_user_id: liveUser.id,
       })
       if (accErr) throw accErr
 
@@ -269,17 +274,17 @@ export default function OnboardingWizard() {
       const { error: memErr } = await supabase.from('memberships').insert({
         account_id: accountId,
         farm_id: farmId,
-        user_id: user.id,
+        user_id: liveUser.id,
         role: 'owner',
       })
       if (memErr) throw memErr
 
       // 4. Load demo data
-      await supabase.rpc('create_demo_farm', { p_user_id: user.id })
+      await supabase.rpc('create_demo_farm', { p_user_id: liveUser.id })
 
       // 5. Persist farm in Dexie
       await db.farms.put({ ...farmRow, sync_status: 'synced' })
-      await db.accounts.put({ id: accountId, owner_user_id: user.id, sync_status: 'synced' })
+      await db.accounts.put({ id: accountId, owner_user_id: liveUser.id, sync_status: 'synced' })
 
       // 6. Update stores and redirect
       setFarms([farmRow])
