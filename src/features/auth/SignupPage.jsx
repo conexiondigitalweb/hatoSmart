@@ -10,12 +10,39 @@ import Input from '../../components/ui/Input'
 const schema = z.object({
   full_name: z.string().min(1, 'Ingresa tu nombre').min(2, 'Mínimo 2 caracteres'),
   email: z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
-  password: z.string().min(1, 'Ingresa una contraseña').min(8, 'Mínimo 8 caracteres'),
+  password: z
+    .string()
+    .min(1, 'Ingresa una contraseña')
+    .min(8, 'Mínimo 8 caracteres')
+    .regex(/[A-Z]/, 'Debe tener al menos una mayúscula')
+    .regex(/[0-9]/, 'Debe tener al menos un número'),
   confirm_password: z.string().min(1, 'Confirma tu contraseña'),
 }).refine((d) => d.password === d.confirm_password, {
   message: 'Las contraseñas no coinciden',
   path: ['confirm_password'],
 })
+
+const PWD_RULES = [
+  { label: 'Mínimo 8 caracteres',     test: (v) => v.length >= 8 },
+  { label: 'Al menos una mayúscula',  test: (v) => /[A-Z]/.test(v) },
+  { label: 'Al menos un número',      test: (v) => /[0-9]/.test(v) },
+]
+
+function PasswordRequirements({ value = '' }) {
+  return (
+    <ul className="flex flex-col gap-1 mt-1">
+      {PWD_RULES.map(({ label, test }) => {
+        const ok = test(value)
+        return (
+          <li key={label} className={`flex items-center gap-1.5 text-xs ${ok ? 'text-[#3dbf5e]' : 'text-gray-400'}`}>
+            <span>{ok ? '✓' : '✗'}</span>
+            {label}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -25,12 +52,16 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
     mode: 'onSubmit',
     reValidateMode: 'onSubmit',
   })
+
+  const watchedValues = watch()
+  console.log('[SignupPage] watch:', watchedValues)
 
   const onSubmit = async ({ full_name, email, password }) => {
     console.log('[SignupPage] onSubmit reached', { full_name, email })
@@ -50,7 +81,6 @@ export default function SignupPage() {
       return
     }
 
-    // If Supabase requires email confirmation, session will be null
     if (!data.session) {
       setNeedsConfirmation(true)
       return
@@ -104,14 +134,19 @@ export default function SignupPage() {
             className="bg-white"
             {...register('email')}
           />
-          <Input
-            label="Contraseña"
-            type="password"
-            placeholder="Mínimo 8 caracteres"
-            error={errors.password?.message}
-            className="bg-white"
-            {...register('password')}
-          />
+
+          <div>
+            <Input
+              label="Contraseña"
+              type="password"
+              placeholder="Mínimo 8 caracteres"
+              error={errors.password?.message}
+              className="bg-white"
+              {...register('password')}
+            />
+            <PasswordRequirements value={watchedValues.password ?? ''} />
+          </div>
+
           <Input
             label="Confirmar contraseña"
             type="password"

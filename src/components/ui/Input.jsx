@@ -1,4 +1,9 @@
-export default function Input({ label, error, helperText, className = '', id, ...props }) {
+import { forwardRef } from 'react'
+
+const Input = forwardRef(function Input(
+  { label, error, helperText, className = '', id, ...props },
+  ref
+) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-')
   return (
     <div className="flex flex-col gap-1">
@@ -9,6 +14,7 @@ export default function Input({ label, error, helperText, className = '', id, ..
       )}
       <input
         id={inputId}
+        ref={ref}
         className={`min-h-[48px] px-4 py-3 rounded-xl border bg-white text-[#2b3240] text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3dbf5e] transition-shadow ${
           error ? 'border-red-400' : 'border-gray-200'
         } ${className}`}
@@ -18,4 +24,6 @@ export default function Input({ label, error, helperText, className = '', id, ..
       {helperText && !error && <span className="text-xs text-gray-400">{helperText}</span>}
     </div>
   )
-}
+})
+
+export default Input
