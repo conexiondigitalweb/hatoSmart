@@ -5,6 +5,7 @@ import { format, addDays } from 'date-fns'
 import { useFarmStore } from '../../stores/farmStore'
 import db from '../../lib/db'
 import Card from '../../components/ui/Card'
+import MilkDashboard from '../milk/MilkDashboard'
 
 function MetricCard({ emoji, label, value, sub }) {
   return (
@@ -53,7 +54,7 @@ function EmptyState({ emoji, title, description, actionLabel, onAction }) {
 }
 
 const QUICK_LINKS = [
-  { emoji: '🥛', titleKey: 'modules.milk',         desc: 'Registra la producción de hoy', to: '/registrar' },
+  { emoji: '🥛', titleKey: 'modules.milk',         desc: 'Registra la producción de hoy', to: '/ordeño' },
   { emoji: '🐄', titleKey: 'modules.animals',       desc: 'Ver todos los animales',        to: '/animales' },
   { emoji: '🔔', titleKey: 'modules.alerts',        desc: 'Revisa las alertas activas',    to: '/alertas' },
   { emoji: '⚖️', titleKey: 'modules.weights',       desc: 'Registra pesajes',              to: '/registrar' },
@@ -144,33 +145,15 @@ export default function HomePage() {
       {isDairy && (
         <section>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Producción</p>
-          {metrics ? (
-            <div className="grid grid-cols-2 gap-3">
-              <MetricCard
-                emoji="🥛"
-                label="Litros hoy"
-                value={metrics.liters_produced ?? '—'}
-                sub={metrics.liters_sold ? `${metrics.liters_sold}L vendidos` : undefined}
-              />
-              <MetricCard
-                emoji="🐄"
-                label="Vacas ordeñadas"
-                value={metrics.cows_milked ?? '—'}
-                sub={
-                  metrics.liters_produced && metrics.cows_milked
-                    ? `${(metrics.liters_produced / metrics.cows_milked).toFixed(1)}L/vaca`
-                    : undefined
-                }
-              />
-            </div>
-          ) : (
-            <Card>
+          <MilkDashboard />
+          {!metrics && (
+            <Card className="mt-3">
               <EmptyState
                 emoji="🥛"
                 title="Sin producción registrada"
                 description="Registra el ordeño de hoy para ver tus métricas aquí."
                 actionLabel="Registrar ordeño"
-                onAction={() => navigate('/registrar')}
+                onAction={() => navigate('/ordeño')}
               />
             </Card>
           )}
@@ -207,7 +190,7 @@ export default function HomePage() {
               title="Sin animales"
               description="Agrega tu primer animal para comenzar."
               actionLabel="Agregar animal"
-              onAction={() => navigate('/animales')}
+              onAction={() => navigate('/animales/nuevo')}
             />
           </Card>
         )}

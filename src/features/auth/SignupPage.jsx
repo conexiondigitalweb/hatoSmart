@@ -59,10 +59,8 @@ export default function SignupPage() {
   })
 
   const pwdValue = watch('password') ?? ''
-  console.log('[SignupPage] watch:', watch())
 
   const onSubmit = async ({ full_name, email, password }) => {
-    console.log('[SignupPage] onSubmit reached', { full_name, email })
     setServerError('')
     const { data, error } = await supabase.auth.signUp({
       email,

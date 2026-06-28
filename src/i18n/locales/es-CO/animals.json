@@ -1,42 +1,57 @@
 {
   "title": "Mis animales",
   "add": "Agregar animal",
-  "search_placeholder": "Buscar por nombre o arete...",
+  "search_placeholder": "Buscar por nombre, arete o código...",
   "categories": {
-    "cow": "Vaca",
+    "calf": "Ternero/a",
     "heifer": "Novilla",
-    "calf_female": "Ternera",
+    "cow": "Vaca",
+    "young_bull": "Torete",
     "bull": "Toro",
-    "steer": "Novillo",
-    "calf_male": "Ternero"
+    "steer": "Novillo"
+  },
+  "repro_status": {
+    "open": "Vacía",
+    "served": "Servida",
+    "pregnant": "Preñada",
+    "dry": "Seca",
+    "fresh": "Recién parida"
   },
   "status": {
     "active": "Activo",
-    "dry": "Seca",
-    "pregnant": "Preñada",
-    "in_heat": "En celo",
-    "sick": "Enferma",
-    "sold": "Vendida",
-    "dead": "Muerta"
+    "sold": "Vendido",
+    "dead": "Muerto",
+    "culled": "Desechado",
+    "transferred": "Transferido",
+    "quarantine": "Cuarentena"
   },
   "fields": {
+    "tag_number": "Arete",
+    "internal_code": "Código interno",
     "name": "Nombre",
-    "tag": "Arete / Código",
     "breed": "Raza",
     "sex": "Sexo",
     "birth_date": "Fecha de nacimiento",
     "category": "Categoría",
+    "origin": "Origen",
     "mother": "Madre",
     "father": "Padre",
-    "weight": "Peso (kg)",
+    "lot": "Lote",
+    "registry_number": "Registro genético",
+    "registry_association": "Asociación",
     "notes": "Observaciones"
   },
   "sex": {
     "female": "Hembra",
     "male": "Macho"
   },
+  "origin": {
+    "born": "Nacido en finca",
+    "purchased": "Comprado",
+    "transferred": "Transferido"
+  },
   "empty": {
     "title": "Sin animales registrados",
-    "description": "Agrega tu primer animal para comenzar."
+    "description": "Agrega tu primer animal para comenzar a hacer seguimiento del hato."
   }
 }

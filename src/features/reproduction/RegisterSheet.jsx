@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import Card from '../../components/ui/Card'
 
 const options = [
-  { key: 'milk', emoji: '🥛' },
-  { key: 'weight', emoji: '⚖️' },
-  { key: 'repro', emoji: '🐄' },
-  { key: 'health', emoji: '💉' },
+  { key: 'milk', emoji: '🥛', to: '/ordeño' },
+  { key: 'weight', emoji: '⚖️', to: '/registrar/peso' },
+  { key: 'repro', emoji: '🐄', to: '/registrar/repro' },
+  { key: 'health', emoji: '💉', to: '/registrar/salud' },
 ]
 
 export default function RegisterSheet() {
@@ -24,11 +24,11 @@ export default function RegisterSheet() {
         <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
         <h2 className="text-lg font-bold text-[#2b3240] mb-4">{t('register.title')}</h2>
         <div className="grid grid-cols-2 gap-3">
-          {options.map(({ key, emoji }) => (
+          {options.map(({ key, emoji, to }) => (
             <Card
               key={key}
               className="flex flex-col gap-2 p-5 min-h-[110px]"
-              onClick={() => navigate(`/registrar/${key}`)}
+              onClick={() => navigate(to)}
             >
               <span className="text-3xl">{emoji}</span>
               <p className="font-semibold text-[#2b3240] text-sm">{t(`register.${key}`)}</p>

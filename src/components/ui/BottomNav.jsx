@@ -1,5 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useFarmStore } from '../../stores/farmStore'
+import db from '../../lib/db'
 
 function IconHome() {
   return (
@@ -47,6 +50,13 @@ function IconMenu() {
 export default function BottomNav() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const activeFarm = useFarmStore((s) => s.activeFarm)
+  const pendingCount = useLiveQuery(
+    () => activeFarm
+      ? db.alerts.where('farm_id').equals(activeFarm.id).filter((a) => a.status === 'pending').count()
+      : 0,
+    [activeFarm?.id]
+  ) ?? 0
 
   const linkClass = ({ isActive }) =>
     `flex flex-col items-center justify-center gap-0.5 min-h-[48px] flex-1 text-xs font-medium transition-colors ${
@@ -77,7 +87,14 @@ export default function BottomNav() {
       </button>
 
       <NavLink to="/alertas" className={linkClass}>
-        <IconBell />
+        <div className="relative">
+          <IconBell />
+          {pendingCount > 0 && (
+            <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+              {pendingCount > 99 ? '99+' : pendingCount}
+            </span>
+          )}
+        </div>
         <span>{t('nav.alerts')}</span>
       </NavLink>
 
