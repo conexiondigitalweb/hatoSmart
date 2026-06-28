@@ -6,8 +6,8 @@ export const useFarmStore = create((set) => ({
 
   setActiveFarm: (farm) => {
     set({ activeFarm: farm })
-    // Pull latest data from Supabase into Dexie whenever a farm is activated
     if (farm?.id) {
+      localStorage.setItem('hs_active_farm_id', farm.id)
       import('../lib/sync/engine').then(({ pullFromSupabase }) =>
         pullFromSupabase(farm.id)
       )
