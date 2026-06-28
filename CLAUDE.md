@@ -85,6 +85,36 @@ hatosmart/
 - Fondo claro: #f5f5f5
 
 ## Estado actual del proyecto
+### Sesión 4 — Completada (28 jun 2026)
+- **Motor de sync**: pullFromSupabase(farmId) en engine.js descarga 6 tablas (animals, repro_events, milk_records, weighings, health_events, alerts) de Supabase → Dexie con bulkPut. Se llama automáticamente desde farmStore.setActiveFarm vía dynamic import (evita circular dep).
+- **categories.js**: corregido para retornar valores del schema DB: calf (ambos sexos <6m), heifer, cow, young_bull (<24m macho), bull, steer. Antes retornaba calf_female/calf_male y steer para jóvenes.
+- **AnimalListPage**: lista animales de Dexie con buscador por arete/nombre/código, filtros por categoría, tarjetas con avatar emoji, edad calculada, badge de repro_status. FAB verde "+".
+- **AnimalDetailPage**: header con foto/emoji, nombre, arete, edad. Tabs Info|Repro|Peso|Sanidad. GDP calculado. FPP desde último evento. Botones rápidos → ReproEventForm con animal preseleccionado.
+- **AnimalFormPage**: react-hook-form+zod, categoría auto-sugerida por suggestCategory(), selector madre (hembras de Dexie), foto → Supabase Storage (animal-photos/), modo edición con reset(existing).
+- **MilkFormPage**: selector AM/PM/Total (botones grandes), inputs numéricos xl, recuerda último precio en localStorage (hs_last_price_per_liter).
+- **MilkDashboard**: embebido en HomePage (solo fincas dairy/dual), gráfica barras 14 días (Recharts, hoy en verde), métricas hoy y promedio 7d.
+- **ReproEventForm**: 6 tipos de evento con íconos. service → crea alert pregnancy_check_due (45d) + calving_due (FPP) + repro_status='served'. calving → crea cría con mother_id, redirige a editar cría. pregnancy_check+pregnant → repro_status='pregnant'. dry_off → cancela alertas calving, repro_status='dry'.
+- **AlertsPage**: alertas pendientes de Dexie, agrupadas por tipo con color/emoji, badge días restantes (rojo si vencida, naranja ≤7d), acciones marcar/descartar. calving_due → abre ReproEventForm.
+- **BottomNav**: badge rojo con conteo de alertas pendientes via useLiveQuery.
+- **App.jsx**: nuevas rutas: /animales, /animales/nuevo, /animales/:id, /animales/:id/editar, /ordeño, /registrar/repro.
+- **RegisterSheet**: navega a rutas reales (/ordeño, /registrar/repro, etc.).
+- **HomePage**: MilkDashboard embebido, quick links apuntan a /ordeño y /animales/nuevo.
+- **SignupPage**: eliminados console.log de diagnóstico.
+- Build: ✅ 1262 módulos, 0 errores.
+
+### Pendiente para Sesión 5
+- Crear función RPC create_account_and_farm en Supabase SQL Editor:
+  - Parámetros: p_account_name, p_farm_name, p_farm_commercial_name, p_orientation, p_currency
+  - Inserta accounts + farms + memberships con SECURITY DEFINER
+  - Retorna { account_id, farm_id }
+- Ejecutar migración 018_fix_accounts_insert_policy.sql en SQL Editor
+- Módulo Pesajes: WeightFormPage + historial en AnimalDetailPage (pestaña Peso)
+- Módulo Sanidad: HealthEventForm + lista en AnimalDetailPage (pestaña Sanidad)
+- Alertas de celo automáticas: cron/job que genera possible_heat cada 21 días tras último celo/servicio si no hay preñez
+- Inventario: módulo básico para insumos (medicamentos, leche reemplazadora)
+- Tests Vitest en rules/reproduction.js y rules/categories.js
+- Quitar console.log de diagnóstico de OnboardingWizard una vez confirmado el flujo
+
 ### Sesión 3 — Completada (27 jun 2026)
 - LoginPage: zod + supabase.auth.signInWithPassword, manejo de errores, routing post-login
 - SignupPage: validación completa, supabase.auth.signUp, pantalla de confirmación de email
