@@ -96,6 +96,26 @@ hatosmart/
 - App.jsx: árbol completo de rutas público/guardado/privado
 - Build: ✅ 453 módulos, 0 errores
 
+### Fixes post-Sesión 3 (27 jun 2026)
+- Input.jsx: agregado forwardRef para que RHF pueda leer valores del DOM
+- LoginPage + SignupPage: reescritos con inputs HTML nativos (sin componente Input) para evitar problemas de forwardRef; labels en text-gray-300 visibles sobre fondo oscuro; logo solo texto "Hato"(blanco)+"Smart"(verde) sin imagen
+- SignupPage: mode/reValidateMode 'onSubmit', schema con .min(1) explícito en todos los campos, requisitos de contraseña visibles en tiempo real (✓/✗), console.log de watch() y onSubmit para diagnóstico
+- LoginPage: link "¿Olvidaste tu contraseña?" con alert stub
+- OnboardingWizard: reemplazados INSERTs individuales por supabase.rpc('create_account_and_farm'); usa supabase.auth.getUser() en lugar del user del store
+- Migración 018: política INSERT faltante en tabla accounts
+
+### Pendiente para Sesión 4
+- Crear función RPC create_account_and_farm en Supabase (SQL Editor):
+  - Parámetros: p_account_name, p_farm_name, p_farm_commercial_name, p_orientation, p_currency
+  - Inserta accounts + farms + memberships con security definer
+  - Retorna { account_id, farm_id }
+- Motor de sync: pull Supabase → Dexie al hacer login (para que el dashboard tenga datos reales)
+- Módulo Animales: listado con filtros, ficha individual, formulario de creación
+- Módulo Ordeño: formulario de registro diario (hato + individual por vaca)
+- Módulo Reproductivo: registro de celo/servicio/preñez/parto
+- Alertas: pantalla completa con marcar como hecha/descartada
+- Quitar console.log de diagnóstico de SignupPage y OnboardingWizard una vez confirmado que el flujo funciona
+
 ### Sesión 2 — Completada (27 jun 2026)
 - Supabase conectado: .env.local + cliente con validación de env vars
 - 17 migraciones SQL: accounts, profiles, farms, memberships, animals, repro_events, milk_records, milk_individual, weighings, health_events, health_event_animals, alerts, audit_log, RLS, triggers, índices y seed demo
