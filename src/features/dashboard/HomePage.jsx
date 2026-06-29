@@ -1,77 +1,62 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import { format, addDays } from 'date-fns'
+import { format, addDays, subDays } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { TrendingUp, TrendingDown, ChevronRight, Milk, Beef, Bell } from 'lucide-react'
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useFarmStore } from '../../stores/farmStore'
+import { useSessionStore } from '../../stores/sessionStore'
 import db from '../../lib/db'
 import Card from '../../components/ui/Card'
+import Skeleton from '../../components/ui/Skeleton'
+import EmptyState from '../../components/ui/EmptyState'
 import MilkDashboard from '../milk/MilkDashboard'
-
-function MetricCard({ emoji, label, value, sub }) {
-  return (
-    <Card className="flex flex-col gap-1 p-4">
-      <span className="text-2xl">{emoji}</span>
-      <p className="text-2xl font-bold text-[#2b3240] leading-none mt-1">{value}</p>
-      <p className="text-xs font-medium text-gray-500">{label}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
-    </Card>
-  )
-}
-
-function AlertRow({ emoji, message, daysUntil }) {
-  const urgency = daysUntil <= 7 ? 'text-red-500' : 'text-orange-500'
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
-      <span className="text-xl flex-shrink-0">{emoji}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-[#2b3240] leading-snug">{message}</p>
-      </div>
-      <span className={`text-xs font-semibold flex-shrink-0 ${urgency}`}>
-        {daysUntil === 0 ? 'Hoy' : daysUntil < 0 ? `Hace ${Math.abs(daysUntil)}d` : `${daysUntil}d`}
-      </span>
-    </div>
-  )
-}
-
-function EmptyState({ emoji, title, description, actionLabel, onAction }) {
-  return (
-    <div className="flex flex-col items-center gap-3 py-8 text-center">
-      <span className="text-5xl">{emoji}</span>
-      <div>
-        <p className="font-semibold text-[#2b3240]">{title}</p>
-        <p className="text-sm text-gray-400 mt-1 leading-relaxed">{description}</p>
-      </div>
-      {onAction && (
-        <button
-          onClick={onAction}
-          className="mt-2 min-h-[48px] px-6 rounded-xl bg-[#3dbf5e] text-white font-semibold text-sm"
-        >
-          {actionLabel}
-        </button>
-      )}
-    </div>
-  )
-}
-
-const QUICK_LINKS = [
-  { emoji: '🥛', titleKey: 'modules.milk',         desc: 'Registra la producción de hoy', to: '/ordeño' },
-  { emoji: '🐄', titleKey: 'modules.animals',       desc: 'Ver todos los animales',        to: '/animales' },
-  { emoji: '🔔', titleKey: 'modules.alerts',        desc: 'Revisa las alertas activas',    to: '/alertas' },
-  { emoji: '⚖️', titleKey: 'modules.weights',       desc: 'Registra pesajes',              to: '/registrar' },
-]
+import { cn } from '../../lib/utils'
 
 const DAIRY_ORIENTATIONS = ['dairy', 'dual']
 
+const ALERT_EMOJI = {
+  calving_due: '🐮', pregnancy_check_due: '🔬', dry_off_due: '🚿',
+  health_due: '💉', possible_heat: '❤️‍🔥', low_stock: '📦',
+}
+const ALERT_URGENCY = (daysUntil) => {
+  if (daysUntil <= 0) return 'bg-red-100 text-red-700'
+  if (daysUntil <= 7) return 'bg-amber-100 text-amber-700'
+  return 'bg-blue-50 text-blue-700'
+}
+
+const CATEGORY_CHIPS = [
+  { key: 'cow',       emoji: '🐮', label: 'Vacas' },
+  { key: 'heifer',    emoji: '🐄', label: 'Novillas' },
+  { key: 'calf',      emoji: '🐣', label: 'Terneros' },
+  { key: 'bull',      emoji: '🐂', label: 'Toros' },
+  { key: 'young_bull',emoji: '🐃', label: 'Toretes' },
+  { key: 'steer',     emoji: '🥩', label: 'Novillos' },
+]
+
+function greeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Buenos días'
+  if (h < 18) return 'Buenas tardes'
+  return 'Buenas noches'
+}
+
 export default function HomePage() {
-  const { t } = useTranslation()
   const navigate = useNavigate()
   const activeFarm = useFarmStore((s) => s.activeFarm)
-  const [metrics, setMetrics] = useState(null)
+  const user = useSessionStore((s) => s.user)
+
+  const [loading, setLoading] = useState(true)
   const [upcomingAlerts, setUpcomingAlerts] = useState([])
   const [animalCounts, setAnimalCounts] = useState({})
+
   const today = new Date()
   const todayStr = format(today, 'yyyy-MM-dd')
   const in15days = format(addDays(today, 15), 'yyyy-MM-dd')
+  const isDairy = DAIRY_ORIENTATIONS.includes(activeFarm?.orientation)
+
+  const userName = user?.user_metadata?.full_name?.split(' ')[0] ?? 'ganadero'
+  const dateLabel = format(today, "EEEE, d 'de' MMMM", { locale: es })
 
   useEffect(() => {
     if (!activeFarm) return
@@ -79,27 +64,9 @@ export default function HomePage() {
   }, [activeFarm?.id])
 
   const loadDashboard = async () => {
+    setLoading(true)
     const farmId = activeFarm.id
 
-    // Milk metrics (today)
-    const milkToday = await db.milk_records
-      .where('[farm_id+date+session]').equals([farmId, todayStr, 'total'])
-      .first()
-      .catch(() => null)
-
-    // Fallback: try any record from last 7 days for the farm
-    let milkRecord = milkToday
-    if (!milkRecord) {
-      milkRecord = await db.milk_records
-        .where('farm_id').equals(farmId)
-        .reverse()
-        .first()
-        .catch(() => null)
-    }
-
-    setMetrics(milkRecord ?? null)
-
-    // Animal counts by category
     const animals = await db.animals
       .where('farm_id').equals(farmId)
       .filter((a) => !a.deleted_at && a.status === 'active')
@@ -111,84 +78,90 @@ export default function HomePage() {
     }, {})
     setAnimalCounts({ total: animals.length, ...counts })
 
-    // Upcoming alerts (next 15 days + overdue)
     const alerts = await db.alerts
       .where('farm_id').equals(farmId)
       .filter((a) => a.status === 'pending' && a.due_date <= in15days)
       .sortBy('due_date')
-    setUpcomingAlerts(alerts.slice(0, 5))
+    setUpcomingAlerts(alerts.slice(0, 3))
+
+    setLoading(false)
   }
 
-  const isDairy = DAIRY_ORIENTATIONS.includes(activeFarm?.orientation)
-
-  const diffDays = (dateStr) => {
-    const d = new Date(dateStr + 'T00:00:00')
-    return Math.round((d - today) / 86400000)
-  }
-
-  const alertEmoji = (type) => {
-    const map = { calving_due: '🐮', pregnancy_check_due: '🔬', dry_off_due: '🚿', health_due: '💉', possible_heat: '❤️‍🔥', low_stock: '📦' }
-    return map[type] ?? '🔔'
-  }
+  const diffDays = (dateStr) => Math.round((new Date(dateStr + 'T00:00') - today) / 86400000)
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-[#2b3240]">{activeFarm?.name ?? 'Mi finca'}</h1>
-        <p className="text-sm text-gray-400">
-          {format(today, "EEEE d 'de' MMMM", { locale: undefined })}
-        </p>
+    <div className="p-4 flex flex-col gap-5 pb-8">
+      {/* Greeting */}
+      <div className="pt-2">
+        <p className="text-sm text-muted-foreground capitalize">{dateLabel}</p>
+        <h1 className="text-2xl font-bold text-foreground mt-0.5">
+          {greeting()}, {userName} 👋
+        </h1>
+        {activeFarm && (
+          <p className="text-base font-semibold text-brand-green mt-0.5">{activeFarm.name}</p>
+        )}
       </div>
 
-      {/* Dairy / Dual metrics */}
+      {/* Dairy production section */}
       {isDairy && (
         <section>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Producción</p>
-          <MilkDashboard />
-          {!metrics && (
-            <Card className="mt-3">
-              <EmptyState
-                emoji="🥛"
-                title="Sin producción registrada"
-                description="Registra el ordeño de hoy para ver tus métricas aquí."
-                actionLabel="Registrar ordeño"
-                onAction={() => navigate('/ordeño')}
-              />
-            </Card>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Producción</h2>
+            <button
+              onClick={() => navigate('/ordeño')}
+              className="text-xs font-semibold text-brand-green flex items-center gap-0.5"
+            >
+              Registrar <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+          {loading ? (
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-24 rounded-2xl" />
+              <Skeleton className="h-32 rounded-2xl" />
+            </div>
+          ) : (
+            <MilkDashboard />
           )}
         </section>
       )}
 
-      {/* Animal counts */}
+      {/* Animal inventory */}
       <section>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-          Inventario — {animalCounts.total ?? 0} animales activos
-        </p>
-        {animalCounts.total > 0 ? (
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { key: 'cow',       emoji: '🐮', label: 'Vacas' },
-              { key: 'heifer',    emoji: '🐄', label: 'Novillas' },
-              { key: 'calf',      emoji: '🐣', label: 'Terneros' },
-              { key: 'bull',      emoji: '🐂', label: 'Toros' },
-              { key: 'young_bull',emoji: '🐃', label: 'Toretes' },
-              { key: 'steer',     emoji: '🥩', label: 'Novillos' },
-            ].filter((c) => animalCounts[c.key]).map((c) => (
-              <MetricCard
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Inventario · {loading ? '—' : (animalCounts.total ?? 0)} animales
+          </h2>
+          <button
+            onClick={() => navigate('/animales')}
+            className="text-xs font-semibold text-brand-green flex items-center gap-0.5"
+          >
+            Ver todos <ChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+        {loading ? (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {[1,2,3,4].map((i) => <Skeleton key={i} className="h-20 w-20 flex-shrink-0 rounded-2xl" />)}
+          </div>
+        ) : animalCounts.total > 0 ? (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {CATEGORY_CHIPS.filter((c) => animalCounts[c.key]).map((c) => (
+              <button
                 key={c.key}
-                emoji={c.emoji}
-                label={c.label}
-                value={animalCounts[c.key]}
-              />
+                onClick={() => navigate('/animales')}
+                className="flex-shrink-0 bg-card rounded-2xl shadow-sm px-4 py-3 flex flex-col items-center gap-1 min-w-[72px] active:scale-95 transition-transform"
+              >
+                <span className="text-xl">{c.emoji}</span>
+                <span className="text-lg font-bold text-foreground leading-none">{animalCounts[c.key]}</span>
+                <span className="text-[11px] text-muted-foreground">{c.label}</span>
+              </button>
             ))}
           </div>
         ) : (
-          <Card>
+          <Card className="p-2">
             <EmptyState
-              emoji="🐄"
-              title="Sin animales"
-              description="Agrega tu primer animal para comenzar."
+              illustration="animals"
+              title="Sin animales registrados"
+              description="Agrega tu primer animal para empezar el seguimiento."
               actionLabel="Agregar animal"
               onAction={() => navigate('/animales/nuevo')}
             />
@@ -198,44 +171,68 @@ export default function HomePage() {
 
       {/* Upcoming alerts */}
       <section>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-          Próximas alertas
-        </p>
-        {upcomingAlerts.length > 0 ? (
-          <Card className="p-4">
-            {upcomingAlerts.map((a) => (
-              <AlertRow
-                key={a.id}
-                emoji={alertEmoji(a.type)}
-                message={a.message ?? a.type}
-                daysUntil={diffDays(a.due_date)}
-              />
-            ))}
-          </Card>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Alertas próximas</h2>
+          {upcomingAlerts.length > 0 && (
+            <button
+              onClick={() => navigate('/alertas')}
+              className="text-xs font-semibold text-brand-green flex items-center gap-0.5"
+            >
+              Ver todas <ChevronRight className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        {loading ? (
+          <div className="flex flex-col gap-2">
+            {[1,2].map((i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}
+          </div>
+        ) : upcomingAlerts.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {upcomingAlerts.map((a) => {
+              const days = diffDays(a.due_date)
+              return (
+                <Card
+                  key={a.id}
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer"
+                  onClick={() => navigate('/alertas')}
+                >
+                  <span className="text-xl flex-shrink-0">{ALERT_EMOJI[a.type] ?? '🔔'}</span>
+                  <p className="text-sm text-foreground flex-1 leading-snug truncate">{a.message ?? a.type}</p>
+                  <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0', ALERT_URGENCY(days))}>
+                    {days <= 0 ? 'Hoy' : `${days}d`}
+                  </span>
+                </Card>
+              )
+            })}
+          </div>
         ) : (
-          <Card>
+          <Card className="p-2">
             <EmptyState
-              emoji="✅"
+              illustration="done"
               title="Sin alertas próximas"
-              description="No hay alertas en los próximos 15 días."
+              description="Todo en orden para los próximos 15 días."
             />
           </Card>
         )}
       </section>
 
-      {/* Quick links */}
+      {/* Quick actions */}
       <section>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Accesos rápidos</p>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Acciones rápidas</h2>
         <div className="grid grid-cols-2 gap-3">
-          {QUICK_LINKS.map(({ emoji, titleKey, desc, to }) => (
-            <Card
-              key={titleKey}
-              className="flex flex-col gap-2 p-4"
-              onClick={() => navigate(to)}
-            >
-              <span className="text-3xl">{emoji}</span>
-              <p className="font-semibold text-[#2b3240] text-sm">{t(titleKey)}</p>
-              <p className="text-xs text-gray-400">{desc}</p>
+          {[
+            { icon: Milk,  label: 'Registrar ordeño',  sub: 'Producción de hoy',    to: '/ordeño',         show: isDairy },
+            { icon: Beef,  label: 'Agregar animal',     sub: 'Nuevo en el hato',     to: '/animales/nuevo', show: true },
+            { icon: Bell,  label: 'Ver alertas',        sub: 'Pendientes hoy',       to: '/alertas',        show: true },
+          ].filter((q) => q.show).map(({ icon: Icon, label, sub, to }) => (
+            <Card key={label} className="flex flex-col gap-2 p-4" onClick={() => navigate(to)}>
+              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+                <Icon className="w-5 h-5 text-brand-green" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">{label}</p>
+                <p className="text-xs text-muted-foreground">{sub}</p>
+              </div>
             </Card>
           ))}
         </div>

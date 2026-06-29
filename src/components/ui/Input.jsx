@@ -1,27 +1,35 @@
 import { forwardRef } from 'react'
+import { cn } from '../../lib/utils'
 
 const Input = forwardRef(function Input(
-  { label, error, helperText, className = '', id, ...props },
+  { label, error, helperText, className = '', id, required, ...props },
   ref
 ) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-')
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-[#2b3240]">
+        <label htmlFor={inputId} className="text-sm font-medium text-foreground">
           {label}
+          {required && <span className="text-destructive ml-0.5">*</span>}
         </label>
       )}
       <input
         id={inputId}
         ref={ref}
-        className={`min-h-[48px] px-4 py-3 rounded-xl border bg-white text-[#2b3240] text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3dbf5e] transition-shadow ${
-          error ? 'border-red-400' : 'border-gray-200'
-        } ${className}`}
+        className={cn(
+          'flex h-12 w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-foreground',
+          'placeholder:text-muted-foreground',
+          'focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          'transition-shadow duration-150',
+          error && 'border-destructive focus:ring-destructive',
+          className
+        )}
         {...props}
       />
-      {error && <span className="text-xs text-red-500">{error}</span>}
-      {helperText && !error && <span className="text-xs text-gray-400">{helperText}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
+      {helperText && !error && <span className="text-xs text-muted-foreground">{helperText}</span>}
     </div>
   )
 })

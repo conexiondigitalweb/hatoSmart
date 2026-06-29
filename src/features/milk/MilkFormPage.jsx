@@ -4,45 +4,44 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { format } from 'date-fns'
+import { ArrowLeft } from 'lucide-react'
+import { toast } from 'sonner'
 import { useFarmStore } from '../../stores/farmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { enqueue } from '../../lib/sync/queue'
 import db from '../../lib/db'
 import Button from '../../components/ui/Button'
+import { cn } from '../../lib/utils'
 
 const schema = z.object({
-  date: z.string().min(1),
-  session: z.enum(['am', 'pm', 'total']),
-  cows_milked: z.coerce.number().int().positive('Ingresa el número de vacas').optional(),
+  date:            z.string().min(1),
+  session:         z.enum(['am', 'pm', 'total']),
+  cows_milked:     z.coerce.number().int().positive().optional(),
   liters_produced: z.coerce.number().positive('Ingresa los litros producidos'),
-  liters_sold: z.coerce.number().nonnegative().optional(),
+  liters_sold:     z.coerce.number().nonnegative().optional(),
   price_per_liter: z.coerce.number().nonnegative().optional(),
-  notes: z.string().optional(),
+  notes:           z.string().optional(),
 })
 
-const inputCls = 'w-full min-h-[56px] px-4 py-3 rounded-xl border border-gray-200 bg-white text-[#2b3240] text-xl font-semibold placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3dbf5e]'
+const numInput = 'w-full h-16 px-4 rounded-xl border border-border bg-card text-foreground text-3xl font-bold placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring text-center'
 
 export default function MilkFormPage() {
-  const navigate = useNavigate()
+  const navigate   = useNavigate()
   const activeFarm = useFarmStore((s) => s.activeFarm)
-  const user = useSessionStore((s) => s.user)
+  const user       = useSessionStore((s) => s.user)
 
-  const {
-    register, handleSubmit, watch, setValue,
-    formState: { errors, isSubmitting },
-  } = useForm({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
     mode: 'onSubmit',
     defaultValues: {
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date:    format(new Date(), 'yyyy-MM-dd'),
       session: 'total',
     },
   })
 
-  // Remember last price from localStorage
   useEffect(() => {
-    const lastPrice = localStorage.getItem('hs_last_price_per_liter')
-    if (lastPrice) setValue('price_per_liter', parseFloat(lastPrice))
+    const last = localStorage.getItem('hs_last_price_per_liter')
+    if (last) setValue('price_per_liter', parseFloat(last))
   }, [])
 
   const session = watch('session')
@@ -52,95 +51,106 @@ export default function MilkFormPage() {
     if (data.price_per_liter) {
       localStorage.setItem('hs_last_price_per_liter', String(data.price_per_liter))
     }
-
     const record = {
       id,
-      account_id: activeFarm.account_id,
-      farm_id: activeFarm.id,
-      date: data.date,
-      session: data.session,
-      cows_milked: data.cows_milked ?? null,
+      account_id:      activeFarm.account_id,
+      farm_id:         activeFarm.id,
+      date:            data.date,
+      session:         data.session,
+      cows_milked:     data.cows_milked ?? null,
       liters_produced: data.liters_produced,
-      liters_sold: data.liters_sold ?? null,
+      liters_sold:     data.liters_sold ?? null,
       liters_internal: data.liters_produced - (data.liters_sold ?? 0),
       price_per_liter: data.price_per_liter ?? null,
-      notes: data.notes || null,
-      recorded_by: user?.id ?? null,
-      sync_status: 'pending',
+      notes:           data.notes || null,
+      recorded_by:     user?.id ?? null,
+      sync_status:     'pending',
     }
-
     await db.milk_records.put(record)
     await enqueue('milk_records', id, 'upsert', record)
+    toast.success('Ordeño guardado ✓')
     navigate(-1)
   }
 
+  const SESSION_OPTS = [
+    { v: 'am',    l: 'AM',    emoji: '🌅' },
+    { v: 'pm',    l: 'PM',    emoji: '🌇' },
+    { v: 'total', l: 'Total', emoji: '📊' },
+  ]
+
   return (
     <div className="flex flex-col pb-28">
-      <div className="bg-white px-4 py-4 border-b border-gray-100 flex items-center gap-3 sticky top-0 z-10">
-        <button onClick={() => navigate(-1)} className="text-gray-400 text-2xl leading-none">‹</button>
-        <h1 className="text-lg font-bold text-[#2b3240] flex-1">Registrar ordeño</h1>
+      <div className="bg-card px-4 py-4 border-b border-border flex items-center gap-3 sticky top-0 z-10 shadow-sm">
+        <button
+          onClick={() => navigate(-1)}
+          className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center"
+        >
+          <ArrowLeft className="w-5 h-5 text-foreground" />
+        </button>
+        <h1 className="text-lg font-bold text-foreground flex-1">Registrar ordeño</h1>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="p-4 flex flex-col gap-5">
-        {/* Fecha */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-[#2b3240]">Fecha</label>
-          <input type="date" className={inputCls} {...register('date')} />
+      <form onSubmit={handleSubmit(onSubmit)} className="p-4 flex flex-col gap-6">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-foreground">Fecha</label>
+          <input type="date"
+            className="h-12 px-4 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            {...register('date')} />
         </div>
 
-        {/* Jornada */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#2b3240]">Jornada</label>
+          <label className="text-sm font-medium text-foreground">Jornada</label>
           <div className="grid grid-cols-3 gap-2">
-            {[{ v: 'am', l: '🌅 AM' }, { v: 'pm', l: '🌇 PM' }, { v: 'total', l: '📊 Total' }].map(({ v, l }) => (
+            {SESSION_OPTS.map(({ v, l, emoji }) => (
               <button key={v} type="button"
                 onClick={() => setValue('session', v)}
-                className={`min-h-[56px] rounded-xl border-2 font-semibold text-sm transition-all ${
-                  session === v ? 'border-[#3dbf5e] bg-green-50 text-[#2b3240]' : 'border-gray-200 text-gray-500'
-                }`}
+                className={cn(
+                  'h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all font-semibold text-sm',
+                  session === v
+                    ? 'border-brand-green bg-green-50 text-brand-green'
+                    : 'border-border text-muted-foreground hover:border-brand-green/50'
+                )}
               >
-                {l}
+                <span className="text-xl">{emoji}</span>
+                <span>{l}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Litros producidos */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-[#2b3240]">Litros producidos *</label>
-          <input
-            type="number" step="0.1" placeholder="0.0"
-            className={`${inputCls} ${errors.liters_produced ? 'border-red-400' : ''}`}
-            {...register('liters_produced')}
-          />
-          {errors.liters_produced && <span className="text-xs text-red-500">{errors.liters_produced.message}</span>}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-foreground">Litros producidos *</label>
+          <input type="number" step="0.1" placeholder="0.0"
+            className={cn(numInput, errors.liters_produced && 'border-destructive')}
+            {...register('liters_produced')} />
+          {errors.liters_produced && (
+            <span className="text-xs text-destructive text-center">{errors.liters_produced.message}</span>
+          )}
         </div>
 
-        {/* Vacas ordeñadas */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-[#2b3240]">Vacas ordeñadas</label>
-          <input type="number" placeholder="0" className={inputCls} {...register('cows_milked')} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-foreground">Vacas ordeñadas</label>
+          <input type="number" placeholder="0" className={numInput} {...register('cows_milked')} />
         </div>
 
-        {/* Litros vendidos */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-[#2b3240]">Litros vendidos (opcional)</label>
-          <input type="number" step="0.1" placeholder="0.0" className={inputCls} {...register('liters_sold')} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-foreground">Litros vendidos</label>
+          <input type="number" step="0.1" placeholder="0.0" className={numInput} {...register('liters_sold')} />
         </div>
 
-        {/* Precio */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-[#2b3240]">Precio por litro (opcional)</label>
-          <input type="number" step="1" placeholder="0" className={inputCls} {...register('price_per_liter')} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-foreground">Precio por litro</label>
+          <input type="number" step="1" placeholder="0" className={numInput} {...register('price_per_liter')} />
         </div>
 
-        {/* Notas */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-[#2b3240]">Observaciones</label>
-          <textarea rows={2} placeholder="Opcional..." className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-[#2b3240] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#3dbf5e]" {...register('notes')} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-foreground">Observaciones</label>
+          <textarea rows={2} placeholder="Opcional..."
+            className="w-full px-4 py-3 rounded-xl border border-border bg-card text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            {...register('notes')} />
         </div>
 
-        <Button type="submit" loading={isSubmitting} className="w-full">
+        <Button type="submit" loading={isSubmitting} className="w-full" size="lg">
           Guardar ordeño
         </Button>
       </form>

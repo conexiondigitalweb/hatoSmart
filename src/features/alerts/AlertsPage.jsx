@@ -1,39 +1,43 @@
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format, differenceInCalendarDays } from 'date-fns'
+import { Bell } from 'lucide-react'
 import { useFarmStore } from '../../stores/farmStore'
 import db from '../../lib/db'
 import EmptyState from '../../components/ui/EmptyState'
+import { cn } from '../../lib/utils'
 
+// Border-left color per type
 const ALERT_CONFIG = {
-  calving_due:           { emoji: '🟣', label: 'Partos próximos',       color: 'bg-purple-50 border-purple-200' },
-  pregnancy_check_due:   { emoji: '🔵', label: 'Chequeos de preñez',    color: 'bg-blue-50 border-blue-200' },
-  possible_heat:         { emoji: '🟡', label: 'Posibles celos',         color: 'bg-yellow-50 border-yellow-200' },
-  dry_off_due:           { emoji: '🟠', label: 'Secados',               color: 'bg-orange-50 border-orange-200' },
-  health_due:            { emoji: '🔴', label: 'Sanidad',               color: 'bg-red-50 border-red-200' },
-  low_stock:             { emoji: '⚪', label: 'Inventario bajo',        color: 'bg-gray-50 border-gray-200' },
+  calving_due:          { label: 'Parto próximo',      borderCls: 'border-l-purple-400',  bgCls: 'bg-purple-50' },
+  pregnancy_check_due:  { label: 'Chequeo de preñez',  borderCls: 'border-l-blue-400',    bgCls: 'bg-blue-50'   },
+  possible_heat:        { label: 'Posible celo',        borderCls: 'border-l-yellow-400',  bgCls: 'bg-yellow-50' },
+  dry_off_due:          { label: 'Secado',              borderCls: 'border-l-orange-400',  bgCls: 'bg-orange-50' },
+  health_due:           { label: 'Sanidad',             borderCls: 'border-l-red-400',     bgCls: 'bg-red-50'    },
+  low_stock:            { label: 'Inventario bajo',     borderCls: 'border-l-gray-300',    bgCls: 'bg-gray-50'   },
 }
 
-const TYPE_ORDER = ['calving_due', 'pregnancy_check_due', 'dry_off_due', 'possible_heat', 'health_due', 'low_stock']
+function urgencyGroup(daysUntil) {
+  if (daysUntil <= 0) return 'HOY'
+  if (daysUntil <= 7) return 'ESTA SEMANA'
+  return 'PRÓXIMAMENTE'
+}
 
-function daysBadge(dueDate) {
-  const diff = differenceInCalendarDays(new Date(dueDate + 'T00:00'), new Date())
-  if (diff < 0) return { text: `Vencida hace ${Math.abs(diff)}d`, cls: 'text-red-600 font-bold' }
-  if (diff === 0) return { text: 'Hoy', cls: 'text-red-600 font-bold' }
-  if (diff <= 7) return { text: `${diff}d`, cls: 'text-orange-500 font-semibold' }
-  return { text: `${diff}d`, cls: 'text-gray-500' }
+function UrgencyBadge({ days }) {
+  if (days < 0) return <span className="text-xs font-bold text-red-600">Vencida {Math.abs(days)}d</span>
+  if (days === 0) return <span className="text-xs font-bold text-red-600">Hoy</span>
+  if (days <= 7)  return <span className="text-xs font-semibold text-amber-600">{days}d</span>
+  return <span className="text-xs text-muted-foreground">{days}d</span>
 }
 
 export default function AlertsPage() {
-  const navigate = useNavigate()
+  const navigate   = useNavigate()
   const activeFarm = useFarmStore((s) => s.activeFarm)
 
   const alerts = useLiveQuery(
     () => activeFarm
-      ? db.alerts
-          .where('farm_id').equals(activeFarm.id)
-          .filter((a) => a.status === 'pending')
-          .toArray()
+      ? db.alerts.where('farm_id').equals(activeFarm.id)
+          .filter((a) => a.status === 'pending').toArray()
       : [],
     [activeFarm?.id]
   )
@@ -50,87 +54,92 @@ export default function AlertsPage() {
   }
 
   if (alerts === undefined) {
-    return <div className="p-4 text-center text-sm text-gray-400 mt-8">Cargando...</div>
+    return <div className="p-4 text-center text-sm text-muted-foreground mt-8">Cargando...</div>
   }
 
-  // Group and sort
-  const grouped = {}
-  for (const a of alerts) {
-    if (!grouped[a.type]) grouped[a.type] = []
-    grouped[a.type].push(a)
-  }
-  for (const type of Object.keys(grouped)) {
-    grouped[type].sort((a, b) => a.due_date.localeCompare(b.due_date))
+  if (!alerts.length) {
+    return (
+      <div className="p-4 pb-28">
+        <h1 className="text-xl font-bold text-foreground mb-6">Alertas</h1>
+        <EmptyState
+          illustration="done"
+          title="Sin alertas pendientes"
+          description="Todo en orden. Las alertas de partos, celos, chequeos y sanidad aparecerán aquí."
+        />
+      </div>
+    )
   }
 
-  const hasAlerts = alerts.length > 0
+  // Sort and group by urgency
+  const sorted = [...alerts].sort((a, b) => a.due_date.localeCompare(b.due_date))
+  const groups = { 'HOY': [], 'ESTA SEMANA': [], 'PRÓXIMAMENTE': [] }
+  for (const a of sorted) {
+    const days = differenceInCalendarDays(new Date(a.due_date + 'T00:00'), new Date())
+    groups[urgencyGroup(days)].push({ ...a, _days: days })
+  }
 
   return (
-    <div className="p-4 flex flex-col gap-4 pb-28">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[#2b3240]">Alertas</h1>
-        {hasAlerts && (
-          <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-            {alerts.length}
-          </span>
-        )}
+    <div className="p-4 pb-28 flex flex-col gap-5">
+      <div className="flex items-center gap-3">
+        <Bell className="w-5 h-5 text-brand-green" />
+        <h1 className="text-xl font-bold text-foreground flex-1">Alertas</h1>
+        <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">
+          {alerts.length}
+        </span>
       </div>
 
-      {!hasAlerts ? (
-        <EmptyState
-          icon="✅"
-          title="Sin alertas pendientes"
-          description="¡Todo en orden! Las alertas de partos, celos, chequeos y sanidad aparecerán aquí."
-        />
-      ) : (
-        TYPE_ORDER.filter((t) => grouped[t]?.length).map((type) => {
-          const cfg = ALERT_CONFIG[type] ?? { emoji: '🔔', label: type, color: 'bg-gray-50 border-gray-200' }
-          return (
-            <div key={type}>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                {cfg.emoji} {cfg.label}
-              </p>
-              <div className="flex flex-col gap-2">
-                {grouped[type].map((alert) => {
-                  const badge = daysBadge(alert.due_date)
-                  return (
-                    <div
-                      key={alert.id}
-                      className={`rounded-2xl border p-4 ${cfg.color}`}
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[#2b3240] leading-snug">
-                            {alert.message ?? type}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {format(new Date(alert.due_date + 'T00:00'), 'dd/MM/yyyy')}
-                          </p>
-                        </div>
-                        <span className={`text-sm flex-shrink-0 ${badge.cls}`}>{badge.text}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleDone(alert.id, alert.type, alert.animal_id)}
-                          className="flex-1 min-h-[40px] rounded-xl bg-[#3dbf5e] text-white text-xs font-semibold"
-                        >
-                          {type === 'calving_due' ? '🐄 Registrar parto' : '✓ Marcar como hecha'}
-                        </button>
-                        <button
-                          onClick={() => handleDismiss(alert.id)}
-                          className="min-h-[40px] px-4 rounded-xl bg-white border border-gray-200 text-gray-500 text-xs font-semibold"
-                        >
-                          Descartar
-                        </button>
-                      </div>
+      {Object.entries(groups).filter(([, items]) => items.length > 0).map(([groupLabel, items]) => (
+        <section key={groupLabel}>
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+            {groupLabel}
+          </p>
+          <div className="flex flex-col gap-2">
+            {items.map((alert) => {
+              const cfg = ALERT_CONFIG[alert.type] ?? { label: alert.type, borderCls: 'border-l-gray-300', bgCls: 'bg-gray-50' }
+              return (
+                <div
+                  key={alert.id}
+                  className={cn(
+                    'rounded-2xl border-l-4 p-4 shadow-sm',
+                    cfg.borderCls,
+                    cfg.bgCls
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {cfg.label}
+                      </p>
+                      <p className="text-sm font-semibold text-foreground leading-snug mt-0.5">
+                        {alert.message ?? alert.type}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {format(new Date(alert.due_date + 'T00:00'), 'dd/MM/yyyy')}
+                      </p>
                     </div>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })
-      )}
+                    <UrgencyBadge days={alert._days} />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDone(alert.id, alert.type, alert.animal_id)}
+                      className="flex-1 h-10 rounded-xl bg-brand-green text-white text-xs font-semibold active:scale-95 transition-transform"
+                    >
+                      {alert.type === 'calving_due' ? '🐄 Registrar parto' : '✓ Marcar hecha'}
+                    </button>
+                    <button
+                      onClick={() => handleDismiss(alert.id)}
+                      className="h-10 px-4 rounded-xl bg-white border border-border text-muted-foreground text-xs font-semibold active:scale-95 transition-transform"
+                    >
+                      Descartar
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }

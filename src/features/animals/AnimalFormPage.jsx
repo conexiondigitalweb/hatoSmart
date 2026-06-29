@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -124,7 +125,7 @@ export default function AnimalFormPage() {
 
     await db.animals.put(record)
     await enqueue('animals', animalId, 'upsert', record)
-
+    toast.success(isEdit ? 'Animal actualizado ✓' : 'Animal creado ✓')
     navigate(isEdit ? `/animales/${id}` : '/animales')
   }
 

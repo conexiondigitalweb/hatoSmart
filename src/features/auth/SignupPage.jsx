@@ -3,16 +3,15 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Leaf, Check, X, Mail } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
+import { cn } from '../../lib/utils'
 
 const schema = z.object({
   full_name: z.string().min(1, 'Ingresa tu nombre').min(2, 'Mínimo 2 caracteres'),
-  email: z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
-  password: z
-    .string()
-    .min(1, 'Ingresa una contraseña')
-    .min(8, 'Mínimo 8 caracteres')
+  email:     z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
+  password:  z.string().min(1, 'Ingresa una contraseña').min(8, 'Mínimo 8 caracteres')
     .regex(/[A-Z]/, 'Debe tener al menos una mayúscula')
     .regex(/[0-9]/, 'Debe tener al menos un número'),
   confirm_password: z.string().min(1, 'Confirma tu contraseña'),
@@ -21,38 +20,25 @@ const schema = z.object({
   path: ['confirm_password'],
 })
 
-const inputCls = (hasError) =>
-  `w-full min-h-[48px] px-4 py-3 rounded-xl border bg-white text-[#2b3240] text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3dbf5e] transition-shadow ${
-    hasError ? 'border-red-400' : 'border-gray-200'
-  }`
-
 const PWD_RULES = [
   { label: 'Mínimo 8 caracteres',    test: (v) => v.length >= 8 },
   { label: 'Al menos una mayúscula', test: (v) => /[A-Z]/.test(v) },
   { label: 'Al menos un número',     test: (v) => /[0-9]/.test(v) },
 ]
 
-function Field({ label, error, children }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-300">{label}</label>
-      {children}
-      {error && <span className="text-xs text-red-400">{error}</span>}
-    </div>
+const fieldCls = (hasError) =>
+  cn(
+    'w-full h-12 px-4 rounded-xl border bg-white text-sm text-foreground placeholder:text-muted-foreground',
+    'focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-shadow',
+    hasError ? 'border-destructive' : 'border-border'
   )
-}
 
 export default function SignupPage() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState('')
   const [needsConfirmation, setNeedsConfirmation] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm({
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
     mode: 'onSubmit',
     reValidateMode: 'onSubmit',
@@ -63,11 +49,9 @@ export default function SignupPage() {
   const onSubmit = async ({ full_name, email, password }) => {
     setServerError('')
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+      email, password,
       options: { data: { full_name } },
     })
-
     if (error) {
       setServerError(
         error.message.includes('already registered')
@@ -76,28 +60,23 @@ export default function SignupPage() {
       )
       return
     }
-
-    if (!data.session) {
-      setNeedsConfirmation(true)
-      return
-    }
-
+    if (!data.session) { setNeedsConfirmation(true); return }
     navigate('/onboarding')
   }
 
   if (needsConfirmation) {
     return (
-      <div className="min-h-screen bg-[#2b3240] flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm text-center">
-          <span className="text-6xl">📧</span>
-          <h2 className="text-white text-xl font-bold mt-4">Revisa tu correo</h2>
-          <p className="text-gray-400 text-sm mt-2 leading-relaxed">
-            Te enviamos un enlace de confirmación. Una vez verificado, podrás iniciar sesión.
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-emerald-100 flex flex-col items-center justify-center p-6">
+        <div className="bg-card rounded-2xl shadow-lg p-8 w-full max-w-sm text-center">
+          <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-9 h-9 text-blue-600" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground">Revisa tu correo</h2>
+          <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+            Te enviamos un enlace de confirmación. Una vez verificado podrás iniciar sesión.
           </p>
-          <Link to="/login">
-            <Button variant="secondary" className="w-full mt-6">
-              Ir a iniciar sesión
-            </Button>
+          <Link to="/login" className="block mt-6">
+            <Button variant="outline" className="w-full">Ir a iniciar sesión</Button>
           </Link>
         </div>
       </div>
@@ -105,76 +84,77 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#2b3240] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-emerald-100 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <span className="text-3xl font-bold">
-            <span className="text-white">Hato</span><span className="text-[#3dbf5e]">Smart</span>
-          </span>
-          <p className="text-gray-400 text-sm mt-2">Es gratis para empezar</p>
+        {/* Logo */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-green shadow-lg mb-3">
+            <Leaf className="w-8 h-8 text-white" strokeWidth={2} />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            Hato<span className="text-brand-green">Smart</span>
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">Es gratis para empezar</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <Field label="Nombre completo" error={errors.full_name?.message}>
-            <input
-              type="text"
-              placeholder="Juan Pérez"
-              className={inputCls(!!errors.full_name)}
-              {...register('full_name')}
-            />
-          </Field>
+        <div className="bg-card rounded-2xl shadow-lg p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-5">Crear cuenta</h2>
 
-          <Field label="Correo electrónico" error={errors.email?.message}>
-            <input
-              type="email"
-              placeholder="correo@ejemplo.com"
-              className={inputCls(!!errors.email)}
-              {...register('email')}
-            />
-          </Field>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Nombre completo</label>
+              <input type="text" placeholder="Juan Pérez" autoComplete="name"
+                className={fieldCls(!!errors.full_name)} {...register('full_name')} />
+              {errors.full_name && <span className="text-xs text-destructive">{errors.full_name.message}</span>}
+            </div>
 
-          <Field label="Contraseña" error={errors.password?.message}>
-            <input
-              type="password"
-              placeholder="Mínimo 8 caracteres"
-              className={inputCls(!!errors.password)}
-              {...register('password')}
-            />
-            <ul className="flex flex-col gap-1 mt-1">
-              {PWD_RULES.map(({ label, test }) => {
-                const ok = test(pwdValue)
-                return (
-                  <li key={label} className={`flex items-center gap-1.5 text-xs ${ok ? 'text-[#3dbf5e]' : 'text-gray-400'}`}>
-                    <span>{ok ? '✓' : '✗'}</span>{label}
-                  </li>
-                )
-              })}
-            </ul>
-          </Field>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Correo electrónico</label>
+              <input type="email" placeholder="correo@ejemplo.com" autoComplete="email"
+                className={fieldCls(!!errors.email)} {...register('email')} />
+              {errors.email && <span className="text-xs text-destructive">{errors.email.message}</span>}
+            </div>
 
-          <Field label="Confirmar contraseña" error={errors.confirm_password?.message}>
-            <input
-              type="password"
-              placeholder="••••••••"
-              className={inputCls(!!errors.confirm_password)}
-              {...register('confirm_password')}
-            />
-          </Field>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Contraseña</label>
+              <input type="password" placeholder="Mínimo 8 caracteres" autoComplete="new-password"
+                className={fieldCls(!!errors.password)} {...register('password')} />
+              <ul className="flex flex-col gap-1 mt-1">
+                {PWD_RULES.map(({ label, test }) => {
+                  const ok = test(pwdValue)
+                  return (
+                    <li key={label} className={cn('flex items-center gap-1.5 text-xs', ok ? 'text-brand-green' : 'text-muted-foreground')}>
+                      {ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                      {label}
+                    </li>
+                  )
+                })}
+              </ul>
+              {errors.password && <span className="text-xs text-destructive">{errors.password.message}</span>}
+            </div>
 
-          {serverError && (
-            <p className="text-red-400 text-sm text-center bg-red-900/20 rounded-lg px-3 py-2">
-              {serverError}
-            </p>
-          )}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Confirmar contraseña</label>
+              <input type="password" placeholder="••••••••" autoComplete="new-password"
+                className={fieldCls(!!errors.confirm_password)} {...register('confirm_password')} />
+              {errors.confirm_password && <span className="text-xs text-destructive">{errors.confirm_password.message}</span>}
+            </div>
 
-          <Button type="submit" loading={isSubmitting} className="w-full mt-2">
-            Crear cuenta
-          </Button>
-        </form>
+            {serverError && (
+              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 text-center">
+                {serverError}
+              </div>
+            )}
 
-        <p className="text-center text-gray-400 text-sm mt-6">
+            <Button type="submit" loading={isSubmitting} className="w-full mt-1">
+              Crear cuenta
+            </Button>
+          </form>
+        </div>
+
+        <p className="text-center text-muted-foreground text-sm mt-5">
           ¿Ya tienes cuenta?{' '}
-          <Link to="/login" className="text-[#3dbf5e] font-medium">
+          <Link to="/login" className="text-brand-green font-semibold hover:underline">
             Inicia sesión
           </Link>
         </p>

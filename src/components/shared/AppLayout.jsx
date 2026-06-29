@@ -1,21 +1,25 @@
 import { Outlet, Link } from 'react-router-dom'
+import { Leaf } from 'lucide-react'
 import BottomNav from '../ui/BottomNav'
 import SyncBadge from './SyncBadge'
 
 export default function AppLayout() {
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
-      <header className="bg-white px-4 py-2 flex items-center justify-between border-b border-gray-100 sticky top-0 z-40">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="bg-card px-4 h-14 flex items-center justify-between border-b border-border sticky top-0 z-40 shadow-sm">
         <Link to="/" className="flex items-center gap-2">
-          <img src="/apple-touch-icon.png" alt="HatoSmart" className="w-10 h-10" />
-          <span className="text-xl font-bold">
-            <span className="text-[#2b3240]">Hato</span><span className="text-[#3dbf5e]">Smart</span>
+          <div className="w-8 h-8 rounded-lg bg-brand-green flex items-center justify-center">
+            <Leaf className="w-5 h-5 text-white" strokeWidth={2.5} />
+          </div>
+          <span className="text-lg font-bold tracking-tight">
+            <span className="text-foreground">Hato</span>
+            <span className="text-brand-green">Smart</span>
           </span>
         </Link>
         <SyncBadge />
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 overflow-y-auto pb-24 animate-fade-in">
         <Outlet />
       </main>
 
