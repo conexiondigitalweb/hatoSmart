@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { format, addDays, subDays } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { TrendingUp, TrendingDown, ChevronRight, Milk, Beef, Bell } from 'lucide-react'
-import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { ChevronRight, Milk, Beef, Bell } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useFarmStore } from '../../stores/farmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import db from '../../lib/db'
@@ -46,46 +46,42 @@ export default function HomePage() {
   const activeFarm = useFarmStore((s) => s.activeFarm)
   const user = useSessionStore((s) => s.user)
 
-  const [loading, setLoading] = useState(true)
-  const [upcomingAlerts, setUpcomingAlerts] = useState([])
-  const [animalCounts, setAnimalCounts] = useState({})
-
   const today = new Date()
-  const todayStr = format(today, 'yyyy-MM-dd')
   const in15days = format(addDays(today, 15), 'yyyy-MM-dd')
   const isDairy = DAIRY_ORIENTATIONS.includes(activeFarm?.orientation)
-
   const userName = user?.user_metadata?.full_name?.split(' ')[0] ?? 'ganadero'
   const dateLabel = format(today, "EEEE, d 'de' MMMM", { locale: es })
 
-  useEffect(() => {
-    if (!activeFarm) return
-    loadDashboard()
-  }, [activeFarm?.id])
+  // Reactive Dexie queries — auto-update when pullFromSupabase writes new data
+  const animals = useLiveQuery(
+    () => activeFarm
+      ? db.animals.where('farm_id').equals(activeFarm.id)
+          .filter((a) => !a.deleted_at && a.status === 'active')
+          .toArray()
+      : [],
+    [activeFarm?.id]
+  )
 
-  const loadDashboard = async () => {
-    setLoading(true)
-    const farmId = activeFarm.id
+  const alertsRaw = useLiveQuery(
+    () => activeFarm
+      ? db.alerts.where('farm_id').equals(activeFarm.id)
+          .filter((a) => a.status === 'pending' && a.due_date <= in15days)
+          .sortBy('due_date')
+      : [],
+    [activeFarm?.id]
+  )
 
-    const animals = await db.animals
-      .where('farm_id').equals(farmId)
-      .filter((a) => !a.deleted_at && a.status === 'active')
-      .toArray()
+  const loading = animals === undefined || alertsRaw === undefined
 
-    const counts = animals.reduce((acc, a) => {
+  const animalCounts = useMemo(() => {
+    if (!animals) return {}
+    return animals.reduce((acc, a) => {
       acc[a.category] = (acc[a.category] ?? 0) + 1
       return acc
-    }, {})
-    setAnimalCounts({ total: animals.length, ...counts })
+    }, { total: animals.length })
+  }, [animals])
 
-    const alerts = await db.alerts
-      .where('farm_id').equals(farmId)
-      .filter((a) => a.status === 'pending' && a.due_date <= in15days)
-      .sortBy('due_date')
-    setUpcomingAlerts(alerts.slice(0, 3))
-
-    setLoading(false)
-  }
+  const upcomingAlerts = useMemo(() => (alertsRaw ?? []).slice(0, 3), [alertsRaw])
 
   const diffDays = (dateStr) => Math.round((new Date(dateStr + 'T00:00') - today) / 86400000)
 
