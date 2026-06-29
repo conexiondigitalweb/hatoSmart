@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Leaf } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useFarmStore } from '../../stores/farmStore'
 import Button from '../../components/ui/Button'
@@ -69,11 +68,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-green shadow-lg mb-4">
-            <Leaf className="w-9 h-9 text-white" strokeWidth={2} />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            Hato<span className="text-brand-green">Smart</span>
+          <img src="/apple-touch-icon.png" alt="HatoSmart" className="w-16 h-16 rounded-2xl shadow-lg mx-auto mb-4" />
+          <h1 className="text-3xl font-bold tracking-tight">
+            <span className="text-foreground">Hato</span><span className="text-brand-green">Smart</span>
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Gestión ganadera inteligente</p>
         </div>

@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, PawPrint, Plus, Bell, MoreHorizontal } from 'lucide-react'
+import { Home, Beef, Plus, Bell, MoreHorizontal } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useFarmStore } from '../../stores/farmStore'
 import db from '../../lib/db'
@@ -35,7 +35,7 @@ export default function BottomNav() {
       </NavLink>
 
       <NavLink to="/animales" className={linkClass}>
-        <PawPrint className="w-5 h-5" />
+        <Beef className="w-5 h-5" />
         <span>{t('nav.animals')}</span>
       </NavLink>
 

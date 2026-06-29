@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Leaf, Check, X, Mail } from 'lucide-react'
+import { Check, X, Mail } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
 import { cn } from '../../lib/utils'
@@ -88,11 +88,9 @@ export default function SignupPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-green shadow-lg mb-3">
-            <Leaf className="w-8 h-8 text-white" strokeWidth={2} />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Hato<span className="text-brand-green">Smart</span>
+          <img src="/apple-touch-icon.png" alt="HatoSmart" className="w-16 h-16 rounded-2xl shadow-lg mx-auto mb-3" />
+          <h1 className="text-3xl font-bold tracking-tight">
+            <span className="text-foreground">Hato</span><span className="text-brand-green">Smart</span>
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Es gratis para empezar</p>
         </div>
