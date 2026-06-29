@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { useFarmStore } from '../../stores/farmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { enqueue } from '../../lib/sync/queue'
+import { runSync } from '../../lib/sync/engine'
 import db from '../../lib/db'
 import Button from '../../components/ui/Button'
 import { cn } from '../../lib/utils'
@@ -68,6 +69,8 @@ export default function MilkFormPage() {
     }
     await db.milk_records.put(record)
     await enqueue('milk_records', id, 'upsert', record)
+    console.log('[Sync] Pushing milk_record to Supabase…')
+    runSync().catch(() => {}) // fire-and-forget; UI no espera al sync
     toast.success('Ordeño guardado ✓')
     navigate(-1)
   }

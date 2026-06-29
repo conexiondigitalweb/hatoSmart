@@ -7,7 +7,14 @@ export function useOnlineStatus() {
   const pendingCount = useSyncStore((s) => s.pendingCount)
 
   useEffect(() => {
-    const handleOnline = () => setStatus(pendingCount > 0 ? 'pending' : 'synced')
+    const handleOnline = async () => {
+      setStatus(pendingCount > 0 ? 'pending' : 'synced')
+      if (pendingCount > 0) {
+        console.log('[Sync] Back online — flushing pending queue…')
+        const { runSync } = await import('../lib/sync/engine')
+        runSync().catch(() => {})
+      }
+    }
     const handleOffline = () => setOffline()
 
     window.addEventListener('online', handleOnline)

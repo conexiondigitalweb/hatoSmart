@@ -9,6 +9,7 @@ import { useFarmStore } from '../../stores/farmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { suggestCategory } from '../../lib/rules/categories'
 import { enqueue } from '../../lib/sync/queue'
+import { runSync } from '../../lib/sync/engine'
 import { supabase } from '../../lib/supabase'
 import db from '../../lib/db'
 import Button from '../../components/ui/Button'
@@ -117,6 +118,8 @@ export default function AnimalFormPage() {
 
     await db.animals.put(record)
     await enqueue('animals', animalId, 'upsert', record)
+    console.log('[Sync] Pushing animal to Supabase…')
+    runSync().catch(() => {})
     toast.success(isEdit ? 'Animal actualizado ✓' : 'Animal creado ✓')
     navigate(isEdit ? `/animales/${id}` : '/animales')
   }

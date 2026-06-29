@@ -6,6 +6,7 @@ import { useFarmStore } from '../../stores/farmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { calcFPP } from '../../lib/rules/reproduction'
 import { enqueue } from '../../lib/sync/queue'
+import { runSync } from '../../lib/sync/engine'
 import db from '../../lib/db'
 import Button from '../../components/ui/Button'
 
@@ -160,10 +161,14 @@ export default function ReproEventForm() {
         await db.animals.put(calf)
         await enqueue('animals', calfId, 'upsert', calf)
         await db.animals.update(animalId, { repro_status: 'fresh', sync_status: 'pending' })
+        console.log('[Sync] Pushing repro_event (calving) to Supabase…')
+        runSync().catch(() => {})
         navigate(`/animales/${calfId}/editar`)
         return
       }
 
+      console.log('[Sync] Pushing repro_event to Supabase…')
+      runSync().catch(() => {})
       navigate(-1)
     } catch (err) {
       setError(err.message ?? 'Error al guardar. Inténtalo de nuevo.')
