@@ -40,10 +40,23 @@ export default function MilkDashboard() {
 
   if (!records?.length) return null
 
-  const byDate = records.reduce((acc, r) => {
-    acc[r.date] = (acc[r.date] ?? 0) + (r.liters_produced ?? 0)
-    return acc
-  }, {})
+  // Group per day: if a 'total' record exists use only that; otherwise sum am+pm.
+  const byDate = (() => {
+    const grouped = {}
+    for (const r of records) {
+      if (!grouped[r.date]) grouped[r.date] = { total: null, parts: 0 }
+      if (r.session === 'total') {
+        grouped[r.date].total = (grouped[r.date].total ?? 0) + (r.liters_produced ?? 0)
+      } else {
+        grouped[r.date].parts += r.liters_produced ?? 0
+      }
+    }
+    const result = {}
+    for (const [date, { total, parts }] of Object.entries(grouped)) {
+      result[date] = total !== null ? total : parts
+    }
+    return result
+  })()
 
   const chartData = Array.from({ length: 14 }, (_, i) => {
     const d = format(subDays(new Date(), 13 - i), 'yyyy-MM-dd')
