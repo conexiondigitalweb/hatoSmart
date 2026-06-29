@@ -21,7 +21,18 @@ async function loadFarmsForUser(userId) {
   // Restore previously active farm from localStorage, or default to first
   const stored = localStorage.getItem('hs_active_farm_id')
   const preferred = stored ? farms.find((f) => f.id === stored) : null
-  useFarmStore.getState().setActiveFarm(preferred ?? farms[0])
+  const activeFarm = preferred ?? farms[0]
+  useFarmStore.getState().setActiveFarm(activeFarm)
+
+  // setActiveFarm triggers pullFromSupabase via dynamic import, but we also
+  // call it explicitly here to guarantee pull on every app init/reload,
+  // not just on login. Fire-and-forget — doesn't block the loading state.
+  if (activeFarm?.id) {
+    console.log(`[Session] Triggering pull on init for farm ${activeFarm.id}`)
+    import('../lib/sync/engine').then(({ pullFromSupabase }) =>
+      pullFromSupabase(activeFarm.id)
+    )
+  }
 }
 
 export const useSessionStore = create((set) => ({

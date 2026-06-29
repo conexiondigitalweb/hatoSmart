@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,7 +12,10 @@ import { enqueue } from '../../lib/sync/queue'
 import { runSync } from '../../lib/sync/engine'
 import db from '../../lib/db'
 import Button from '../../components/ui/Button'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../components/ui/Dialog'
 import { cn } from '../../lib/utils'
+
+const SESSION_LABELS = { am: 'AM (mañana)', pm: 'PM (tarde)', total: 'Total del día' }
 
 const schema = z.object({
   date:            z.string().min(1),
@@ -30,6 +33,7 @@ export default function MilkFormPage() {
   const navigate   = useNavigate()
   const activeFarm = useFarmStore((s) => s.activeFarm)
   const user       = useSessionStore((s) => s.user)
+  const [duplicate, setDuplicate] = useState(null) // { existing, pendingData }
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
@@ -47,8 +51,8 @@ export default function MilkFormPage() {
 
   const session = watch('session')
 
-  const onSubmit = async (data) => {
-    const id = crypto.randomUUID()
+  const saveRecord = async (data, existingId = null) => {
+    const id = existingId ?? crypto.randomUUID()
     if (data.price_per_liter) {
       localStorage.setItem('hs_last_price_per_liter', String(data.price_per_liter))
     }
@@ -70,9 +74,34 @@ export default function MilkFormPage() {
     await db.milk_records.put(record)
     await enqueue('milk_records', id, 'upsert', record)
     console.log('[Sync] Pushing milk_record to Supabase…')
-    runSync().catch(() => {}) // fire-and-forget; UI no espera al sync
-    toast.success('Ordeño guardado ✓')
+    runSync().catch(() => {})
+    toast.success(existingId ? 'Ordeño reemplazado ✓' : 'Ordeño guardado ✓')
     navigate(-1)
+  }
+
+  const onSubmit = async (data) => {
+    // Check for duplicate: same farm + date + session
+    const existing = await db.milk_records
+      .where('[farm_id+date+session]')
+      .equals([activeFarm.id, data.date, data.session])
+      .filter((r) => !r.deleted_at)
+      .first()
+      .catch(() => null) // compound index may not exist — fall back
+
+    // Fallback if compound index not defined
+    const existingFallback = existing === null
+      ? await db.milk_records
+          .where('farm_id').equals(activeFarm.id)
+          .filter((r) => r.date === data.date && r.session === data.session && !r.deleted_at)
+          .first()
+      : existing
+
+    if (existingFallback) {
+      setDuplicate({ existing: existingFallback, pendingData: data })
+      return
+    }
+
+    await saveRecord(data)
   }
 
   const SESSION_OPTS = [
@@ -82,6 +111,38 @@ export default function MilkFormPage() {
   ]
 
   return (
+    <>
+    {/* Duplicate confirmation dialog */}
+    <Dialog open={!!duplicate} onOpenChange={(open) => { if (!open) setDuplicate(null) }}>
+      <DialogContent>
+        <DialogTitle>Ordeño ya registrado</DialogTitle>
+        <DialogDescription>
+          Ya registraste el ordeño <strong>{duplicate && SESSION_LABELS[duplicate.existing.session]}</strong> del{' '}
+          <strong>{duplicate?.existing.date}</strong> con{' '}
+          <strong>{duplicate?.existing.liters_produced} litros</strong>.
+          ¿Deseas reemplazarlo?
+        </DialogDescription>
+        <div className="flex gap-3 mt-5">
+          <button
+            className="flex-1 h-11 rounded-xl border border-border text-sm font-semibold text-foreground"
+            onClick={() => setDuplicate(null)}
+          >
+            Cancelar
+          </button>
+          <button
+            className="flex-1 h-11 rounded-xl bg-brand-green text-white text-sm font-semibold"
+            onClick={async () => {
+              const { existing, pendingData } = duplicate
+              setDuplicate(null)
+              await saveRecord(pendingData, existing.id)
+            }}
+          >
+            Reemplazar
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
     <div className="flex flex-col pb-28">
       <div className="bg-card px-4 py-4 border-b border-border flex items-center gap-3 sticky top-0 z-10 shadow-sm">
         <button
@@ -158,5 +219,6 @@ export default function MilkFormPage() {
         </Button>
       </form>
     </div>
+    </>
   )
 }
