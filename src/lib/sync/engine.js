@@ -4,6 +4,15 @@ import db from '../db'
 import { getPendingItems, dequeue } from './queue'
 import { useSyncStore } from '../../stores/syncStore'
 
+// Fields that exist only in Dexie — never sent to Supabase
+const DEXIE_ONLY = ['sync_status', 'last_synced_at', 'client_id']
+
+function cleanPayload(record) {
+  const clean = { ...record }
+  for (const field of DEXIE_ONLY) delete clean[field]
+  return clean
+}
+
 // ── Push (Dexie → Supabase) ────────────────────────────────────────────────
 
 export async function runSync() {
@@ -27,9 +36,19 @@ export async function runSync() {
       const payload = JSON.parse(item.payload)
 
       if (item.operation === 'upsert') {
+        const clean = cleanPayload(payload)
         console.log(`[Sync] Pushing ${item.table_name} (${item.record_id}) to Supabase…`)
-        const { error } = await supabase.from(item.table_name).upsert(payload)
+        const { data, error } = await supabase
+          .from(item.table_name)
+          .upsert(clean)
+          .select('id')
         if (error) throw error
+        // Detect silent RLS rejection: no error but nothing was written
+        if (!data || data.length === 0) {
+          console.error(`[Sync] ✗ RLS rejected silently: ${item.table_name} (${item.record_id}) — leaving in queue`)
+          errorCount++
+          continue
+        }
       } else if (item.operation === 'delete') {
         console.log(`[Sync] Soft-deleting ${item.table_name} (${item.record_id}) in Supabase…`)
         const { error } = await supabase
