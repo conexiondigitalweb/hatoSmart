@@ -79,46 +79,66 @@ hatosmart/
         └── dashboard/
 ```
 
-## Colores de marca
-- Verde principal: #3dbf5e
-- Azul oscuro: #2b3240
-- Fondo claro: #f5f5f5
+## Colores de marca (design system actual)
+- Verde marca: #16a34a  (brand-green en Tailwind)
+- Verde oscuro: #14532d (brand-dark)
+- Acento ámbar: #d97706 (brand-accent)
+- Fondo: var(--background), tarjetas: var(--card), texto: var(--foreground)
+- (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
-### Sesión 5 — Completada (28 jun 2026)
-- **Design system**: Inter (Google Fonts), paleta HatoSmart (#16a34a verde, #14532d oscuro, #d97706 acento), CSS vars en formato shadcn/ui.
-- **Dependencias nuevas**: lucide-react, sonner, class-variance-authority, clsx, tailwind-merge, tailwindcss-animate, @radix-ui/react-slot, @radix-ui/react-tabs, @radix-ui/react-avatar.
-- **src/lib/utils.js**: función `cn()` (clsx + tailwind-merge).
-- **Button**: cva con variantes primary/secondary/danger/ghost/outline/link, Slot asChild, spinner integrado.
-- **Card**: sub-componentes CardHeader/CardContent/CardFooter.
-- **Badge**: cva con variantes de repro status (pregnant/dry/served/fresh) y urgencia (urgent/warning).
-- **Input**: focus ring verde, error state, forwardRef.
-- **Avatar/AvatarImage/AvatarFallback**: @radix-ui/react-avatar, fallback verde con iniciales.
-- **Tabs/TabsList/TabsTrigger/TabsContent**: @radix-ui/react-tabs.
-- **Skeleton**: animación pulse para loading states.
-- **EmptyState**: ilustraciones SVG (animals/milk/alerts/search/done) en lugar de emoji.
-- **BottomNav**: iconos lucide (Home, PawPrint, Plus, Bell, MoreHorizontal), FAB elevado 56px, badge de alertas en tiempo real.
-- **AppLayout**: header 56px con icono Leaf + wordmark, sombra sutil.
-- **SyncBadge**: iconos lucide con spin en pending, sin texto cuando synced.
-- **main.jsx**: Toaster (sonner) richColors en top-center.
-- **LoginPage/SignupPage**: fondo gradiente verde claro, card blanca centrada, iconos lucide.
-- **HomePage**: saludo personalizado + fecha, skeleton loaders, chips de inventario con scroll horizontal, alertas con badge de urgencia, quick actions con iconos.
-- **AnimalListPage**: Avatar con iniciales, buscador rounded-full con Search icon, skeleton loaders, Badge para repro status.
-- **AnimalDetailPage**: header hero verde oscuro con círculos decorativos, shadcn Tabs, iconos ArrowLeft/Pencil.
-- **MilkDashboard**: AreaChart con gradiente verde (reemplaza BarChart), tendencia vs ayer, tooltip personalizado.
-- **MilkFormPage**: inputs numéricos text-3xl centrados, toast "Ordeño guardado ✓".
-- **AlertsPage**: agrupada HOY/ESTA SEMANA/PRÓXIMAMENTE, tarjetas con borde izquierdo coloreado por tipo.
-- **AnimalFormPage**: toast "Animal creado ✓" / "Animal actualizado ✓".
-- Build: ✅ 3563 módulos, 0 errores.
+### Sesión 6 — Completada (28 jun 2026)
 
-### Pendiente para Sesión 6
-- Crear función RPC create_account_and_farm en Supabase SQL Editor
-- Ejecutar migración 018_fix_accounts_insert_policy.sql en SQL Editor
-- Módulo Pesajes: WeightFormPage + historial en AnimalDetailPage (pestaña Peso)
-- Módulo Sanidad: HealthEventForm + lista en AnimalDetailPage (pestaña Sanidad)
-- Alertas de celo automáticas: generate possible_heat cada 21 días
-- Tests Vitest en rules/reproduction.js y rules/categories.js
-- PWA manifest: actualizar theme_color a #16a34a
+#### Lo que está funcionando en producción (https://hato-smart.vercel.app)
+
+**Auth y onboarding**
+- Login, registro, confirmación de email, OnboardingWizard 3 pasos
+- Función RPC `create_account_and_farm` con SECURITY DEFINER crea account + farm + membership
+- PrivateRoute guarda rutas; rehydratación de sesión con pull al recargar página
+
+**Sync bidireccional (Dexie ↔ Supabase)**
+- `runSync()` en `engine.js`: push Dexie → Supabase; se llama fire-and-forget tras cada `enqueue()` en MilkFormPage, AnimalFormPage y ReproEventForm
+- `pullFromSupabase(farmId)`: pull Supabase → Dexie; se llama en `setActiveFarm()` (farmStore) y en `loadFarmsForUser()` (sessionStore) al montar la app. Descarga 6 tablas con ventana de 90/180 días.
+- `cleanPayload()` en engine.js elimina `sync_status`, `last_synced_at`, `client_id` del payload antes del upsert (campos Dexie-only que no existen en Supabase)
+- Detección de rechazo silencioso de RLS: upsert con `.select('id')` verifica que `data.length > 0`; si está vacío el item queda en la cola sin marcar como synced
+- Al volver online (`online` event), `useOnlineStatus` vacía la cola con `runSync()`
+- Logs visibles: `[Sync] Pushing ...`, `[Sync] ✓ ... synced`, `[Sync] Pull complete — X animals, Y milk_records...`
+
+**RLS (migración 019 — ejecutar en Supabase SQL Editor)**
+- Políticas INSERT + SELECT + UPDATE para: animals, repro_events, milk_records, milk_individual, weighings, health_events, alerts
+- Todas basadas en `farm_id IN (SELECT farm_id FROM memberships WHERE user_id = auth.uid())`
+- memberships: SELECT para `user_id = auth.uid()`
+- Archivo: `supabase/migrations/019_fix_rls_all_tables.sql`
+
+**Módulos implementados**
+- **Animales**: lista con búsqueda + filtros categoría, ficha individual (Tabs Info/Repro/Peso/Sanidad), formulario create/edit con foto a Storage, categoría auto-sugerida
+- **Ordeño**: formulario AM/PM/Total, recuerda precio en localStorage; control de duplicados — Dialog de confirmación si ya existe registro para esa fecha+jornada; opción "Reemplazar" hace update (mismo UUID)
+- **Reproducción**: 6 tipos de evento, crea alertas automáticas (pregnancy_check_due 45d, calving_due FPP), crea animal cría en parto
+- **Alertas**: agrupadas HOY/ESTA SEMANA/PRÓXIMAMENTE, acciones marcar/descartar, badge en BottomNav
+
+**Dashboard y reactividad**
+- `HomePage` usa `useLiveQuery` (no useEffect+useState) → se actualiza automáticamente cuando el pull escribe en Dexie
+- `AnimalListPage` y `AlertsPage` también usan `useLiveQuery`
+- `MilkDashboard`: lógica correcta AM/PM vs Total — si existe registro `session='total'` usa solo ese; si no, suma am+pm. Nunca mezcla ambos en la misma suma
+
+**Design system (shadcn/ui pattern)**
+- Dependencias: lucide-react, sonner, class-variance-authority, clsx, tailwind-merge, tailwindcss-animate, @radix-ui/react-slot, @radix-ui/react-tabs, @radix-ui/react-avatar, @radix-ui/react-dialog
+- Componentes en `src/components/ui/`: Button (cva, spinner), Card, Badge (repro variants), Input (forwardRef), Avatar, Tabs, Skeleton, EmptyState (SVG illustrations), Dialog
+- Fuente Inter (Google Fonts), CSS vars HSL en `src/index.css`
+- Logo real (`/apple-touch-icon.png`) en AppLayout, LoginPage y SignupPage
+- BottomNav: iconos `Beef` (animales), `Home`, `Bell`, `MoreHorizontal`; FAB central 56px; badge alertas en tiempo real
+
+**Build**: ✅ 3606 módulos, 0 errores
+
+#### Pendiente para Sesión 7
+- **CRÍTICO — Ejecutar en Supabase**: migración `019_fix_rls_all_tables.sql` si no se ha ejecutado
+- **Módulo Pesajes**: WeightFormPage + historial en AnimalDetailPage pestaña Peso
+- **Módulo Sanidad**: HealthEventForm + lista en AnimalDetailPage pestaña Sanidad
+- **Pantalla Más (MorePage)**: rediseño con shadcn/ui — perfil, configuración de finca, cerrar sesión
+- **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada (lógica en rules/reproduction.js o Supabase Edge Function)
+- **Tests Vitest**: rules/reproduction.js y rules/categories.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Prompt de inicio de sesión**: guardar resumen del estado actual como primer mensaje para retomar contexto en nuevo chat
 
 ### Sesión 4 — Completada (28 jun 2026)
 - **Motor de sync**: pullFromSupabase(farmId) en engine.js descarga 6 tablas (animals, repro_events, milk_records, weighings, health_events, alerts) de Supabase → Dexie con bulkPut. Se llama automáticamente desde farmStore.setActiveFarm vía dynamic import (evita circular dep).
