@@ -85,6 +85,41 @@ hatosmart/
 - Fondo claro: #f5f5f5
 
 ## Estado actual del proyecto
+### Sesión 5 — Completada (28 jun 2026)
+- **Design system**: Inter (Google Fonts), paleta HatoSmart (#16a34a verde, #14532d oscuro, #d97706 acento), CSS vars en formato shadcn/ui.
+- **Dependencias nuevas**: lucide-react, sonner, class-variance-authority, clsx, tailwind-merge, tailwindcss-animate, @radix-ui/react-slot, @radix-ui/react-tabs, @radix-ui/react-avatar.
+- **src/lib/utils.js**: función `cn()` (clsx + tailwind-merge).
+- **Button**: cva con variantes primary/secondary/danger/ghost/outline/link, Slot asChild, spinner integrado.
+- **Card**: sub-componentes CardHeader/CardContent/CardFooter.
+- **Badge**: cva con variantes de repro status (pregnant/dry/served/fresh) y urgencia (urgent/warning).
+- **Input**: focus ring verde, error state, forwardRef.
+- **Avatar/AvatarImage/AvatarFallback**: @radix-ui/react-avatar, fallback verde con iniciales.
+- **Tabs/TabsList/TabsTrigger/TabsContent**: @radix-ui/react-tabs.
+- **Skeleton**: animación pulse para loading states.
+- **EmptyState**: ilustraciones SVG (animals/milk/alerts/search/done) en lugar de emoji.
+- **BottomNav**: iconos lucide (Home, PawPrint, Plus, Bell, MoreHorizontal), FAB elevado 56px, badge de alertas en tiempo real.
+- **AppLayout**: header 56px con icono Leaf + wordmark, sombra sutil.
+- **SyncBadge**: iconos lucide con spin en pending, sin texto cuando synced.
+- **main.jsx**: Toaster (sonner) richColors en top-center.
+- **LoginPage/SignupPage**: fondo gradiente verde claro, card blanca centrada, iconos lucide.
+- **HomePage**: saludo personalizado + fecha, skeleton loaders, chips de inventario con scroll horizontal, alertas con badge de urgencia, quick actions con iconos.
+- **AnimalListPage**: Avatar con iniciales, buscador rounded-full con Search icon, skeleton loaders, Badge para repro status.
+- **AnimalDetailPage**: header hero verde oscuro con círculos decorativos, shadcn Tabs, iconos ArrowLeft/Pencil.
+- **MilkDashboard**: AreaChart con gradiente verde (reemplaza BarChart), tendencia vs ayer, tooltip personalizado.
+- **MilkFormPage**: inputs numéricos text-3xl centrados, toast "Ordeño guardado ✓".
+- **AlertsPage**: agrupada HOY/ESTA SEMANA/PRÓXIMAMENTE, tarjetas con borde izquierdo coloreado por tipo.
+- **AnimalFormPage**: toast "Animal creado ✓" / "Animal actualizado ✓".
+- Build: ✅ 3563 módulos, 0 errores.
+
+### Pendiente para Sesión 6
+- Crear función RPC create_account_and_farm en Supabase SQL Editor
+- Ejecutar migración 018_fix_accounts_insert_policy.sql en SQL Editor
+- Módulo Pesajes: WeightFormPage + historial en AnimalDetailPage (pestaña Peso)
+- Módulo Sanidad: HealthEventForm + lista en AnimalDetailPage (pestaña Sanidad)
+- Alertas de celo automáticas: generate possible_heat cada 21 días
+- Tests Vitest en rules/reproduction.js y rules/categories.js
+- PWA manifest: actualizar theme_color a #16a34a
+
 ### Sesión 4 — Completada (28 jun 2026)
 - **Motor de sync**: pullFromSupabase(farmId) en engine.js descarga 6 tablas (animals, repro_events, milk_records, weighings, health_events, alerts) de Supabase → Dexie con bulkPut. Se llama automáticamente desde farmStore.setActiveFarm vía dynamic import (evita circular dep).
 - **categories.js**: corregido para retornar valores del schema DB: calf (ambos sexos <6m), heifer, cow, young_bull (<24m macho), bull, steer. Antes retornaba calf_female/calf_male y steer para jóvenes.
