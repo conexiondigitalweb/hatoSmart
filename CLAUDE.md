@@ -87,6 +87,28 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 7 — Completada (11 jul 2026)
+
+**Módulo Pesajes**
+- Tabla `weighings` ya existía desde Sesión 2 (migración `009_weighings.sql`) con RLS/triggers/índices completos; se agregó columna `method` (`bascula` | `cinta`) vía `supabase/migrations/020_weighings_method.sql`
+- `WeightFormPage` (`src/features/weights/WeightFormPage.jsx`): formulario react-hook-form+zod — selector de animal (todos, no solo hembras), fecha (no futura), peso en kg (>0), método báscula/cinta, observaciones. Soporta `?animalId=` preseleccionado. Sigue el mismo patrón de escritura Dexie→enqueue→runSync que MilkFormPage/ReproEventForm
+- Ruta `/registrar/peso` agregada en `App.jsx`; `RegisterSheet` ya apuntaba ahí desde antes (i18n `register.weight`)
+- **GDP** usa `calcGDP()` de `rules/weights.js` (ya existente, sin cambios de lógica) — se calcula tanto para el resumen "Último pesaje" como por cada fila del historial (comparando contra el pesaje anterior cronológico)
+- `AnimalDetailPage` pestaña Peso: agregada gráfica de evolución de peso (Recharts `LineChart`, verde `#16a34a`, mismo estilo que `MilkDashboard`) y el historial ahora muestra fecha, peso, método, GDP y observaciones por registro (antes solo mostraba fecha+peso)
+- No se tocó `db.js` — la tabla `weighings` ya estaba en el schema Dexie desde Sesión 1/2; `method` no necesita índice porque no se consulta por ese campo
+
+**Build**: ✅ 3608 módulos, 0 errores. Verificado en navegador (dev server) que la app carga sin errores de consola y el guard de rutas privadas funciona; no se pudo probar el flujo autenticado completo (sin credenciales de sesión en este entorno)
+
+**Nota de convención**: los formularios de Ordeño/Reproducción/Pesajes usan strings en español hardcodeados (no i18next) pese a la regla 6 de este archivo — es la convención real ya establecida en el código (`milk.json`/`health.json` existen pero no se usan en ningún componente). Se mantuvo consistencia con el patrón existente en vez de introducir i18n solo en este módulo.
+
+#### Pendiente para Sesión 8
+- **CRÍTICO — Verificar en Supabase**: confirmar que la migración `019_fix_rls_all_tables.sql` se ejecutó, y ejecutar `020_weighings_method.sql`
+- **Módulo Sanidad**: HealthEventForm + lista en AnimalDetailPage pestaña Sanidad
+- **Pantalla Más (MorePage)**: rediseño con shadcn/ui — perfil, configuración de finca, cerrar sesión
+- **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada (lógica en rules/reproduction.js o Supabase Edge Function)
+- **Tests Vitest**: rules/reproduction.js, rules/categories.js y rules/weights.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+
 ### Sesión 6 — Completada (28 jun 2026)
 
 #### Lo que está funcionando en producción (https://hato-smart.vercel.app)

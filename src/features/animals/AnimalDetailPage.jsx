@@ -2,12 +2,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format, differenceInMonths, differenceInYears } from 'date-fns'
 import { ArrowLeft, Pencil } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Skeleton from '../../components/ui/Skeleton'
 import db from '../../lib/db'
 import { cn } from '../../lib/utils'
+import { calcGDP } from '../../lib/rules/weights'
 
 const CATEGORY_LABEL = {
   calf: 'Ternero/a', heifer: 'Novilla', cow: 'Vaca',
@@ -26,6 +28,17 @@ const EVENT_LABEL = {
   calving:          { label: 'Parto',           emoji: '🐄' },
   abortion:         { label: 'Aborto',          emoji: '⚠️' },
   dry_off:          { label: 'Secado',          emoji: '💧' },
+}
+const METHOD_LABEL = { bascula: 'Báscula', cinta: 'Cinta' }
+
+function WeightTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg text-xs">
+      <p className="font-semibold text-foreground">{payload[0].value} kg</p>
+      <p className="text-muted-foreground">{label}</p>
+    </div>
+  )
 }
 
 function ageLabel(birthDate) {
@@ -87,9 +100,11 @@ export default function AnimalDetailPage() {
   const lastWeight = weighings?.[0]
   const prevWeight = weighings?.[1]
   const gdp = lastWeight && prevWeight
-    ? ((lastWeight.weight_kg - prevWeight.weight_kg) /
-       Math.max(1, Math.round((new Date(lastWeight.date) - new Date(prevWeight.date)) / 86400000))).toFixed(2)
+    ? calcGDP(prevWeight.weight_kg, prevWeight.date, lastWeight.weight_kg, lastWeight.date)?.toFixed(2)
     : null
+  const weightChartData = weighings?.length >= 2
+    ? [...weighings].reverse().map((w) => ({ date: w.date, label: format(new Date(w.date), 'dd/MM'), weight: w.weight_kg }))
+    : []
 
   const lastRepro = reproEvents?.[0]
   const fpp = lastRepro?.expected_calving_date
@@ -234,19 +249,48 @@ export default function AnimalDetailPage() {
               <InfoRow label="Peso"             value={lastWeight ? `${lastWeight.weight_kg} kg` : '—'} />
               <InfoRow label="Fecha"            value={lastWeight ? format(new Date(lastWeight.date), 'dd/MM/yyyy') : null} />
               <InfoRow label="GDP"              value={gdp ? `${gdp} kg/día` : null} />
+              <InfoRow label="Método"           value={lastWeight?.method ? METHOD_LABEL[lastWeight.method] : null} />
               <InfoRow label="Condición corporal" value={lastWeight?.body_condition ? String(lastWeight.body_condition) : null} />
             </Section>
             <Button onClick={() => navigate(`/registrar/peso?animalId=${id}`)} className="w-full">
               Registrar pesaje
             </Button>
+            {weightChartData.length > 0 && (
+              <div className="bg-card rounded-2xl shadow-sm p-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Evolución de peso</p>
+                <ResponsiveContainer width="100%" height={140}>
+                  <LineChart data={weightChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} width={32} domain={['dataMin - 5', 'dataMax + 5']} />
+                    <Tooltip content={<WeightTooltip />} />
+                    <Line type="monotone" dataKey="weight" stroke="#16a34a" strokeWidth={2} dot={{ r: 3, fill: '#16a34a' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
             {weighings?.length > 0 && (
               <Section title="Historial">
-                {weighings.map((w) => (
-                  <div key={w.id} className="flex justify-between py-2.5 border-b border-border last:border-0">
-                    <span className="text-sm text-muted-foreground">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
-                    <span className="text-sm font-semibold text-foreground">{w.weight_kg} kg</span>
-                  </div>
-                ))}
+                {weighings.map((w, i) => {
+                  const older = weighings[i + 1]
+                  const rowGdp = older ? calcGDP(older.weight_kg, older.date, w.weight_kg, w.date) : null
+                  return (
+                    <div key={w.id} className="flex flex-col gap-0.5 py-2.5 border-b border-border last:border-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
+                        <span className="text-sm font-semibold text-foreground">{w.weight_kg} kg</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">{METHOD_LABEL[w.method] ?? '—'}</span>
+                        {rowGdp !== null && (
+                          <span className={cn('text-xs font-medium', rowGdp >= 0 ? 'text-brand-green' : 'text-destructive')}>
+                            GDP {rowGdp.toFixed(2)} kg/día
+                          </span>
+                        )}
+                      </div>
+                      {w.notes && <p className="text-xs text-muted-foreground mt-0.5">{w.notes}</p>}
+                    </div>
+                  )
+                })}
               </Section>
             )}
           </TabsContent>
