@@ -141,6 +141,13 @@ export async function pullFromSupabase(farmId) {
     counts.health_events = healthEvents?.length ?? 0
     if (counts.health_events) await db.health_events.bulkPut(healthEvents.map((r) => ({ ...r, ...synced })))
 
+    // Health protocols — full catalog, not date-windowed
+    const { data: healthProtocols, error: protocolsErr } = await supabase
+      .from('health_protocols').select('*').eq('farm_id', farmId).is('deleted_at', null)
+    if (protocolsErr) throw protocolsErr
+    counts.health_protocols = healthProtocols?.length ?? 0
+    if (counts.health_protocols) await db.health_protocols.bulkPut(healthProtocols.map((r) => ({ ...r, ...synced })))
+
     // Alerts — pending only
     const { data: alerts, error: alertsErr } = await supabase
       .from('alerts').select('*').eq('farm_id', farmId).eq('status', 'pending')
@@ -151,7 +158,7 @@ export async function pullFromSupabase(farmId) {
     console.log(
       `[Sync] Pull complete — ${counts.animals} animals, ${counts.repro_events} repro_events, ` +
       `${counts.milk_records} milk_records, ${counts.weighings} weighings, ` +
-      `${counts.health_events} health_events, ${counts.alerts} alerts`
+      `${counts.health_events} health_events, ${counts.health_protocols} health_protocols, ${counts.alerts} alerts`
     )
     useSyncStore.getState().setSynced()
   } catch (err) {

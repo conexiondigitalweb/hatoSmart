@@ -16,6 +16,9 @@ import RegisterSheet from './features/reproduction/RegisterSheet'
 import ReproEventForm from './features/reproduction/ReproEventForm'
 import WeightFormPage from './features/weights/WeightFormPage'
 import WeightHistoryPage from './features/weights/WeightHistoryPage'
+import HealthEventFormPage from './features/health/HealthEventFormPage'
+import HealthHistoryPage from './features/health/HealthHistoryPage'
+import ProtocolsPage from './features/health/ProtocolsPage'
 import AlertsPage from './features/alerts/AlertsPage'
 import MorePage from './features/more/MorePage'
 
@@ -47,6 +50,9 @@ export default function App() {
           <Route path="/registrar/repro" element={<ReproEventForm />} />
           <Route path="/registrar/peso" element={<WeightFormPage />} />
           <Route path="/pesajes" element={<WeightHistoryPage />} />
+          <Route path="/registrar/salud" element={<HealthEventFormPage />} />
+          <Route path="/salud" element={<HealthHistoryPage />} />
+          <Route path="/protocolos" element={<ProtocolsPage />} />
           <Route path="/alertas" element={<AlertsPage />} />
           <Route path="/mas" element={<MorePage />} />
         </Route>

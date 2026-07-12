@@ -10,6 +10,7 @@ import Skeleton from '../../components/ui/Skeleton'
 import db from '../../lib/db'
 import { cn } from '../../lib/utils'
 import { calcGDP } from '../../lib/rules/weights'
+import { HEALTH_EVENT_TYPES } from '../../lib/rules/health'
 
 const CATEGORY_LABEL = {
   calf: 'Ternero/a', heifer: 'Novilla', cow: 'Vaca',
@@ -29,6 +30,7 @@ const EVENT_LABEL = {
   abortion:         { label: 'Aborto',          emoji: '⚠️' },
   dry_off:          { label: 'Secado',          emoji: '💧' },
 }
+const HEALTH_TYPE_MAP = Object.fromEntries(HEALTH_EVENT_TYPES.map((t) => [t.value, t]))
 const METHOD_LABEL = { bascula: 'Báscula', cinta: 'Cinta' }
 
 function WeightTooltip({ active, payload, label }) {
@@ -108,6 +110,7 @@ export default function AnimalDetailPage() {
 
   const lastRepro = reproEvents?.[0]
   const fpp = lastRepro?.expected_calving_date
+  const lastHealthEvent = healthEvents?.[0]
 
   const tabs = animal.sex === 'female'
     ? ['info', 'repro', 'peso', 'sanidad']
@@ -297,25 +300,41 @@ export default function AnimalDetailPage() {
 
           {/* SANIDAD */}
           <TabsContent value="sanidad" className="flex flex-col gap-3">
+            <Section title="Último evento">
+              <InfoRow label="Evento" value={lastHealthEvent ? `${HEALTH_TYPE_MAP[lastHealthEvent.type]?.emoji ?? ''} ${lastHealthEvent.product || HEALTH_TYPE_MAP[lastHealthEvent.type]?.label || '—'}` : '—'} />
+              <InfoRow label="Fecha" value={lastHealthEvent ? format(new Date(lastHealthEvent.date), 'dd/MM/yyyy') : null} />
+              <InfoRow label="Próxima dosis" value={lastHealthEvent?.next_due_date ? format(new Date(lastHealthEvent.next_due_date), 'dd/MM/yyyy') : null} />
+            </Section>
             <Button onClick={() => navigate(`/registrar/salud?animalId=${id}`)} className="w-full">
               Registrar evento sanitario
             </Button>
             {healthEvents?.length > 0 ? (
-              <Section title="Historial sanitario">
-                {healthEvents.map((e) => (
-                  <div key={e.id} className="py-2.5 border-b border-border last:border-0">
-                    <div className="flex justify-between">
-                      <p className="text-sm font-medium text-foreground">{e.product ?? e.type}</p>
-                      <span className="text-xs text-muted-foreground">{format(new Date(e.date), 'dd/MM/yy')}</span>
+              <Section title="Historial">
+                {healthEvents.map((e) => {
+                  const cfg = HEALTH_TYPE_MAP[e.type] ?? { emoji: '📋', label: e.type }
+                  return (
+                    <div key={e.id} className="flex flex-col gap-0.5 py-2.5 border-b border-border last:border-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-foreground">
+                          <span className="mr-1">{cfg.emoji}</span>{e.product || cfg.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{format(new Date(e.date), 'dd/MM/yyyy')}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">
+                          {cfg.label}{e.dose ? ` · ${e.dose}` : ''}{e.responsible ? ` · Dr(a). ${e.responsible}` : ''}
+                        </span>
+                        {e.cost != null && <span className="text-xs font-medium text-foreground">${e.cost}</span>}
+                      </div>
+                      {e.next_due_date && (
+                        <p className="text-xs text-amber-600 mt-0.5">
+                          Próxima dosis: {format(new Date(e.next_due_date), 'dd/MM/yyyy')}
+                        </p>
+                      )}
+                      {e.notes && <p className="text-xs text-muted-foreground mt-0.5">{e.notes}</p>}
                     </div>
-                    {e.diagnosis && <p className="text-xs text-muted-foreground mt-0.5">{e.diagnosis}</p>}
-                    {e.next_due_date && (
-                      <p className="text-xs text-amber-600 mt-0.5">
-                        Próxima: {format(new Date(e.next_due_date), 'dd/MM/yyyy')}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </Section>
             ) : (
               <p className="text-center text-muted-foreground text-sm py-8">Sin eventos sanitarios registrados.</p>

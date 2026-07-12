@@ -81,7 +81,26 @@ export default function HomePage() {
     [activeFarm?.id]
   )
 
-  const loading = animals === undefined || alertsRaw === undefined || weighings === undefined
+  const healthEvents = useLiveQuery(
+    () => activeFarm
+      ? db.health_events.where('farm_id').equals(activeFarm.id)
+          .filter((e) => !e.deleted_at)
+          .toArray()
+      : [],
+    [activeFarm?.id]
+  )
+
+  const nextHealthAlert = useLiveQuery(
+    () => activeFarm
+      ? db.alerts.where('farm_id').equals(activeFarm.id)
+          .filter((a) => a.status === 'pending' && a.type === 'health_due')
+          .sortBy('due_date')
+          .then((list) => list[0] ?? null)
+      : null,
+    [activeFarm?.id]
+  )
+
+  const loading = animals === undefined || alertsRaw === undefined || weighings === undefined || healthEvents === undefined
 
   const animalCounts = useMemo(() => {
     if (!animals) return {}
@@ -121,6 +140,12 @@ export default function HomePage() {
       avgGdp: gdps.length ? gdps.reduce((a, b) => a + b, 0) / gdps.length : null,
     }
   }, [weighings])
+
+  const recentHealthCount = useMemo(() => {
+    if (!healthEvents?.length) return 0
+    const cutoff = format(subDays(today, 30), 'yyyy-MM-dd')
+    return healthEvents.filter((e) => e.date >= cutoff).length
+  }, [healthEvents])
 
   const diffDays = (dateStr) => Math.round((new Date(dateStr + 'T00:00') - today) / 86400000)
 
@@ -203,6 +228,54 @@ export default function HomePage() {
               description="Registra el primer pesaje para comenzar a monitorear el GDP."
               actionLabel="Registrar pesaje"
               onAction={() => navigate('/registrar/peso')}
+            />
+          </Card>
+        )}
+      </section>
+
+      {/* Health section */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Sanidad</h2>
+          <button
+            onClick={() => navigate('/salud')}
+            className="text-xs font-semibold text-brand-green flex items-center gap-0.5"
+          >
+            Ver todos <ChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+        {loading ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-24 rounded-2xl" />
+          </div>
+        ) : nextHealthAlert || recentHealthCount > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="p-4 flex flex-col gap-0.5">
+              <p className="text-sm font-bold text-foreground leading-snug line-clamp-2">
+                {nextHealthAlert ? nextHealthAlert.message : '—'}
+              </p>
+              <p className="text-xs font-medium text-muted-foreground">Próxima dosis</p>
+              {nextHealthAlert && (
+                <p className="text-xs text-muted-foreground/70">
+                  {format(new Date(nextHealthAlert.due_date + 'T00:00'), 'dd/MM/yyyy')}
+                </p>
+              )}
+            </Card>
+            <Card className="p-4 flex flex-col gap-0.5">
+              <p className="text-2xl font-bold text-foreground leading-none">{recentHealthCount}</p>
+              <p className="text-xs font-medium text-muted-foreground">Eventos recientes</p>
+              <p className="text-xs text-muted-foreground/70">últimos 30 días</p>
+            </Card>
+          </div>
+        ) : (
+          <Card className="p-2">
+            <EmptyState
+              illustration="alerts"
+              title="Sin eventos sanitarios"
+              description="Registra vacunas, desparasitaciones y tratamientos para comenzar el historial."
+              actionLabel="Registrar evento"
+              onAction={() => navigate('/registrar/salud')}
             />
           </Card>
         )}

@@ -36,4 +36,9 @@ db.version(2).stores({
   sync_queue: '++local_id, table_name, record_id, operation, created_at',
 })
 
+// Version 3: adds health_protocols catalog
+db.version(3).stores({
+  health_protocols: 'id, account_id, farm_id, type, deleted_at, sync_status',
+})
+
 export default db

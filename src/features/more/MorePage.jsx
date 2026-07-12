@@ -7,6 +7,7 @@ import Card from '../../components/ui/Card'
 
 const menuItems = [
   { emoji: '🏡', label: 'Mis fincas', to: '/seleccionar-finca' },
+  { emoji: '💉', label: 'Protocolos sanitarios', to: '/protocolos' },
   { emoji: '⚙️', label: 'Configuración', to: '/configuracion' },
   { emoji: '👤', label: 'Mi perfil', to: '/perfil' },
 ]

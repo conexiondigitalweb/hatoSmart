@@ -99,15 +99,39 @@ hatosmart/
 
 **Build**: ✅ 3608 módulos, 0 errores. Verificado en navegador (dev server) que la app carga sin errores de consola y el guard de rutas privadas funciona; no se pudo probar el flujo autenticado completo (sin credenciales de sesión en este entorno)
 
-**Nota de convención**: los formularios de Ordeño/Reproducción/Pesajes usan strings en español hardcodeados (no i18next) pese a la regla 6 de este archivo — es la convención real ya establecida en el código (`milk.json`/`health.json` existen pero no se usan en ningún componente). Se mantuvo consistencia con el patrón existente en vez de introducir i18n solo en este módulo.
+**Nota de convención**: los formularios de Ordeño/Reproducción/Pesajes/Sanidad usan strings en español hardcodeados (no i18next) pese a la regla 6 de este archivo — es la convención real ya establecida en el código (`milk.json`/`health.json` existen pero no se usan en ningún componente). Se mantuvo consistencia con el patrón existente en vez de introducir i18n solo en un módulo.
+
+**Fix PWA — actualización no llegaba a la app instalada**
+- Causa raíz: `registerType: 'autoUpdate'` combinado con el script de registro auto-inyectado (`injectRegister: 'auto'`) nunca importaba `virtual:pwa-register`, así que el "autoUpdate" real de vite-plugin-pwa nunca se activaba. El service worker nuevo quedaba en estado `waiting` indefinidamente porque el ciclo de vida estándar exige cerrar *todas* las instancias abiertas para activarlo — algo que casi nunca ocurre en una PWA instalada (queda suspendida, no cerrada)
+- Fix: `registerType: 'prompt'` + `injectRegister: false` en `vite.config.js`, más `src/components/shared/PwaUpdatePrompt.jsx` (hook `useRegisterSW` de `virtual:pwa-register/react`, montado en `main.jsx`) que muestra un toast "Nueva versión disponible" → botón "Actualizar" llama `updateServiceWorker(true)` (skip waiting + reload)
+- Verificado end-to-end con `vite preview` (build de producción real): build v1 cargado → rebuild v2 → `registration.update()` sin recargar la pestaña (simula PWA nunca cerrada) → `waiting: true` + toast visible → clic "Actualizar" → SW nuevo activo y bundle nuevo confirmado
+
+**Dashboard — sección Pesajes**
+- `HomePage.jsx`: sección "Pesajes" (mismo patrón visual que "Producción") con card de último pesaje y card de GDP promedio de los últimos 14 días
+- `WeightHistoryPage.jsx` (`/pesajes`) nueva — historial de pesajes de toda la finca con GDP por registro, no existía antes (solo había historial por animal)
+
+**Módulo Sanidad**
+- **Deslinde con Reproducción** (pedido explícito): Reproducción cubre `heat/service/pregnancy_check/calving/abortion/dry_off` — ningún tipo de evento se solapa con Sanidad. Sanidad cubre salud general: vacuna, desparasitación, tratamiento, cirugía, revisión veterinaria, enfermedad, otro. Sin duplicación.
+- **Esquema existente reutilizado**: la tabla `health_events` ya existía desde Sesión 2 (`010_health_events.sql`) con RLS/triggers/índices — se amplió el `check` de `type` (agregando `surgery` y `checkup`, se mantuvo `illness` por compatibilidad) y se agregaron columnas `protocol_id` y `cost` vía `022_health_events_extend.sql`. Igual que con Pesajes, se usó `account_id`/`farm_id` (no `tenant_id`) para seguir la regla de arquitectura #1
+- **Tabla nueva `health_protocols`** (`021_health_protocols.sql`): catálogo de protocolos sanitarios por finca (nombre, tipo, periodicidad en días opcional, notas), RLS igual al resto de tablas, trigger `updated_at`
+- **`ProtocolsPage.jsx`** (`/protocolos`, enlazada desde `MorePage`): CRUD del catálogo — lista + Dialog crear/editar + Dialog confirmar eliminar (soft delete)
+- **`HealthEventFormPage.jsx`** (`/registrar/salud`): selector de animal, tipo de evento (grid como `ReproEventForm`), selector opcional de protocolo (filtrado por tipo) que autocompleta producto y sugiere próxima dosis vía `calcNextDueDate()` de `rules/health.js`, dosis, costo (≥0), veterinario, observaciones. Validación de fecha no futura
+- **Alertas de próxima dosis**: si `next_due_date` queda definida, se crea una alerta reutilizando el sistema existente — `type: 'health_due'` (ya estaba en el `check` de `alerts` y en `ALERT_CONFIG`/`ALERT_EMOJI` de `AlertsPage`/`HomePage` desde antes, solo faltaba quien la generara) con `source_table`/`source_id` apuntando al evento. No se creó ningún sistema paralelo
+- **`AnimalDetailPage.jsx`** pestaña Sanidad: mismo patrón que Peso — resumen "Último evento" + historial con tipo/emoji, producto, dosis, veterinario, costo, próxima dosis y observaciones por registro
+- **`HealthHistoryPage.jsx`** (`/salud`): historial completo de la finca, filtrable por tipo de evento (chips), mismo patrón que `WeightHistoryPage`
+- **`HomePage.jsx`** sección "Sanidad": card de próxima dosis pendiente (alerta `health_due` más próxima) + conteo de eventos de los últimos 30 días
+- **Fuera de alcance / nota para Sesión 8**: `health_events` ya soportaba eventos grupales (`group_label` + tabla `health_event_animals`, usada en el seed para "Hato completo") antes de esta sesión. El nuevo formulario registra un evento por animal (igual que Ordeño/Reproducción/Pesajes) — no se construyó UI para eventos por lote. La pestaña Sanidad de `AnimalDetailPage` solo lee `health_events.animal_id`, por lo que eventos grupales sin `animal_id` no aparecerían ahí (limitación preexistente, no introducida en esta sesión)
+- No hubo ambigüedad que requiriera desviarse del alcance pedido — el sistema de alertas resultó directamente reutilizable sin cambios
+
+**Build**: ✅ 3616 módulos, 0 errores. Verificado en navegador (dev server) que la app carga sin errores de consola; no se pudo probar el flujo autenticado completo (sin credenciales de sesión en este entorno)
 
 #### Pendiente para Sesión 8
-- **CRÍTICO — Verificar en Supabase**: confirmar que la migración `019_fix_rls_all_tables.sql` se ejecutó, y ejecutar `020_weighings_method.sql`
-- **Módulo Sanidad**: HealthEventForm + lista en AnimalDetailPage pestaña Sanidad
+- **CRÍTICO — Verificar en Supabase**: confirmar que `019_fix_rls_all_tables.sql` se ejecutó, y ejecutar `020_weighings_method.sql`, `021_health_protocols.sql`, `022_health_events_extend.sql`
 - **Pantalla Más (MorePage)**: rediseño con shadcn/ui — perfil, configuración de finca, cerrar sesión
 - **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada (lógica en rules/reproduction.js o Supabase Edge Function)
-- **Tests Vitest**: rules/reproduction.js, rules/categories.js y rules/weights.js
+- **Tests Vitest**: rules/reproduction.js, rules/categories.js, rules/weights.js y rules/health.js
 - **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales**: si se quiere exponer UI para tratar el hato completo de una vez, definir cómo `AnimalDetailPage` debe reflejar eventos sin `animal_id` (vía `health_event_animals`)
 
 ### Sesión 6 — Completada (28 jun 2026)
 
