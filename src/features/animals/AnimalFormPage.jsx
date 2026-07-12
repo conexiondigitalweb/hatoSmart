@@ -140,8 +140,7 @@ export default function AnimalFormPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="p-4 flex flex-col gap-5">
         {/* Foto */}
-        <div className="flex flex-col gap-1">
-          <label className={labelCls}>Foto (opcional)</label>
+        <Field label="Foto (opcional)">
           <input
             id="photo-input"
             type="file"
@@ -149,7 +148,7 @@ export default function AnimalFormPage() {
             capture="environment"
             className="w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-green file:text-white file:font-semibold"
           />
-        </div>
+        </Field>
 
         {/* Identificación */}
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide -mb-2">Identificación</p>
