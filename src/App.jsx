@@ -15,6 +15,7 @@ import MilkFormPage from './features/milk/MilkFormPage'
 import RegisterSheet from './features/reproduction/RegisterSheet'
 import ReproEventForm from './features/reproduction/ReproEventForm'
 import WeightFormPage from './features/weights/WeightFormPage'
+import WeightHistoryPage from './features/weights/WeightHistoryPage'
 import AlertsPage from './features/alerts/AlertsPage'
 import MorePage from './features/more/MorePage'
 
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/registrar" element={<RegisterSheet />} />
           <Route path="/registrar/repro" element={<ReproEventForm />} />
           <Route path="/registrar/peso" element={<WeightFormPage />} />
+          <Route path="/pesajes" element={<WeightHistoryPage />} />
           <Route path="/alertas" element={<AlertsPage />} />
           <Route path="/mas" element={<MorePage />} />
         </Route>

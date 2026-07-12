@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { format, addDays } from 'date-fns'
+import { format, addDays, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronRight, Milk, Beef, Bell } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useFarmStore } from '../../stores/farmStore'
 import { useSessionStore } from '../../stores/sessionStore'
+import { calcGDP } from '../../lib/rules/weights'
 import db from '../../lib/db'
 import Card from '../../components/ui/Card'
 import Skeleton from '../../components/ui/Skeleton'
@@ -71,7 +72,16 @@ export default function HomePage() {
     [activeFarm?.id]
   )
 
-  const loading = animals === undefined || alertsRaw === undefined
+  const weighings = useLiveQuery(
+    () => activeFarm
+      ? db.weighings.where('farm_id').equals(activeFarm.id)
+          .filter((w) => !w.deleted_at)
+          .sortBy('date')
+      : [],
+    [activeFarm?.id]
+  )
+
+  const loading = animals === undefined || alertsRaw === undefined || weighings === undefined
 
   const animalCounts = useMemo(() => {
     if (!animals) return {}
@@ -81,7 +91,36 @@ export default function HomePage() {
     }, { total: animals.length })
   }, [animals])
 
+  const animalMap = useMemo(
+    () => Object.fromEntries((animals ?? []).map((a) => [a.id, a])),
+    [animals]
+  )
+
   const upcomingAlerts = useMemo(() => (alertsRaw ?? []).slice(0, 3), [alertsRaw])
+
+  // weighings comes sorted ascending by date — group per animal to compute
+  // GDP between consecutive weighings, same rule as AnimalDetailPage.
+  const { lastWeighing, avgGdp } = useMemo(() => {
+    if (!weighings?.length) return { lastWeighing: null, avgGdp: null }
+    const byAnimal = {}
+    for (const w of weighings) {
+      (byAnimal[w.animal_id] ??= []).push(w)
+    }
+    const cutoff = format(subDays(today, 14), 'yyyy-MM-dd')
+    const gdps = []
+    for (const list of Object.values(byAnimal)) {
+      for (let i = 1; i < list.length; i++) {
+        if (list[i].date >= cutoff) {
+          const g = calcGDP(list[i - 1].weight_kg, list[i - 1].date, list[i].weight_kg, list[i].date)
+          if (g !== null) gdps.push(g)
+        }
+      }
+    }
+    return {
+      lastWeighing: weighings[weighings.length - 1],
+      avgGdp: gdps.length ? gdps.reduce((a, b) => a + b, 0) / gdps.length : null,
+    }
+  }, [weighings])
 
   const diffDays = (dateStr) => Math.round((new Date(dateStr + 'T00:00') - today) / 86400000)
 
@@ -120,6 +159,54 @@ export default function HomePage() {
           )}
         </section>
       )}
+
+      {/* Weighings section */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pesajes</h2>
+          <button
+            onClick={() => navigate('/pesajes')}
+            className="text-xs font-semibold text-brand-green flex items-center gap-0.5"
+          >
+            Ver todos <ChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+        {loading ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-24 rounded-2xl" />
+          </div>
+        ) : lastWeighing ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="p-4 flex flex-col gap-0.5">
+              <p className="text-2xl font-bold text-foreground leading-none">{lastWeighing.weight_kg} kg</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                {animalMap[lastWeighing.animal_id]?.name || animalMap[lastWeighing.animal_id]?.tag_number || 'Animal'}
+              </p>
+              <p className="text-xs text-muted-foreground/70">{format(new Date(lastWeighing.date), 'dd/MM/yyyy')}</p>
+            </Card>
+            <Card className="p-4 flex flex-col gap-0.5">
+              <p className="text-2xl font-bold text-foreground leading-none">
+                {avgGdp !== null ? avgGdp.toFixed(2) : '—'}
+              </p>
+              <p className="text-xs font-medium text-muted-foreground">GDP promedio</p>
+              <p className="text-xs text-muted-foreground/70">
+                {avgGdp !== null ? 'kg/día · últimos 14 días' : 'Sin datos suficientes'}
+              </p>
+            </Card>
+          </div>
+        ) : (
+          <Card className="p-2">
+            <EmptyState
+              illustration="animals"
+              title="Sin pesajes registrados"
+              description="Registra el primer pesaje para comenzar a monitorear el GDP."
+              actionLabel="Registrar pesaje"
+              onAction={() => navigate('/registrar/peso')}
+            />
+          </Card>
+        )}
+      </section>
 
       {/* Animal inventory */}
       <section>
