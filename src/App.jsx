@@ -1,5 +1,6 @@
 import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { useSessionStore } from './stores/sessionStore'
 import { PENDING_INVITE_CODE_KEY } from './lib/inviteCode'
 import AppLayout from './components/shared/AppLayout'
@@ -37,49 +38,52 @@ export default function App() {
   useEffect(() => { init() }, [init])
 
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/registro" element={<SignupPage />} />
+    <>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/registro" element={<SignupPage />} />
 
-      {/* Auth required, no farm needed */}
-      <Route path="/onboarding" element={<OnboardingWizardGuard />} />
-      <Route path="/seleccionar-finca" element={<FarmSelectorGuard />} />
-      <Route path="/unirse" element={<JoinFarmPageGuard />} />
+        {/* Auth required, no farm needed */}
+        <Route path="/onboarding" element={<OnboardingWizardGuard />} />
+        <Route path="/seleccionar-finca" element={<FarmSelectorGuard />} />
+        <Route path="/unirse" element={<JoinFarmPageGuard />} />
 
-      {/* Private routes — need session + active farm */}
-      <Route element={<PrivateRoute />}>
-        <Route element={<AppLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/animales" element={<AnimalListPage />} />
-          <Route path="/animales/nuevo" element={<RequireRole role="admin"><AnimalFormPage /></RequireRole>} />
-          <Route path="/animales/importar" element={
-            <RequireRole role="admin">
-              <Suspense fallback={<div className="p-4 text-center text-sm text-muted-foreground mt-8">Cargando...</div>}>
-                <ImportAnimalsPage />
-              </Suspense>
-            </RequireRole>
-          } />
-          <Route path="/animales/:id" element={<AnimalDetailPage />} />
-          <Route path="/animales/:id/editar" element={<RequireRole role="admin"><AnimalFormPage /></RequireRole>} />
-          <Route path="/ordeño" element={<MilkFormPage />} />
-          <Route path="/registrar" element={<RegisterSheet />} />
-          <Route path="/registrar/repro" element={<ReproEventForm />} />
-          <Route path="/registrar/peso" element={<WeightFormPage />} />
-          <Route path="/pesajes" element={<WeightHistoryPage />} />
-          <Route path="/registrar/salud" element={<HealthEventFormPage />} />
-          <Route path="/salud" element={<HealthHistoryPage />} />
-          <Route path="/protocolos" element={<RequireRole role="admin"><ProtocolsPage /></RequireRole>} />
-          <Route path="/usuarios" element={<RequireRole role="owner"><ManageUsersPage /></RequireRole>} />
-          <Route path="/configuracion" element={<RequireRole role="owner"><FarmSettingsPage /></RequireRole>} />
-          <Route path="/perfil" element={<ProfilePage />} />
-          <Route path="/alertas" element={<AlertsPage />} />
-          <Route path="/mas" element={<MorePage />} />
+        {/* Private routes — need session + active farm */}
+        <Route element={<PrivateRoute />}>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/animales" element={<AnimalListPage />} />
+            <Route path="/animales/nuevo" element={<RequireRole role="admin"><AnimalFormPage /></RequireRole>} />
+            <Route path="/animales/importar" element={
+              <RequireRole role="admin">
+                <Suspense fallback={<div className="p-4 text-center text-sm text-muted-foreground mt-8">Cargando...</div>}>
+                  <ImportAnimalsPage />
+                </Suspense>
+              </RequireRole>
+            } />
+            <Route path="/animales/:id" element={<AnimalDetailPage />} />
+            <Route path="/animales/:id/editar" element={<RequireRole role="admin"><AnimalFormPage /></RequireRole>} />
+            <Route path="/ordeño" element={<MilkFormPage />} />
+            <Route path="/registrar" element={<RegisterSheet />} />
+            <Route path="/registrar/repro" element={<ReproEventForm />} />
+            <Route path="/registrar/peso" element={<WeightFormPage />} />
+            <Route path="/pesajes" element={<WeightHistoryPage />} />
+            <Route path="/registrar/salud" element={<HealthEventFormPage />} />
+            <Route path="/salud" element={<HealthHistoryPage />} />
+            <Route path="/protocolos" element={<RequireRole role="admin"><ProtocolsPage /></RequireRole>} />
+            <Route path="/usuarios" element={<RequireRole role="owner"><ManageUsersPage /></RequireRole>} />
+            <Route path="/configuracion" element={<RequireRole role="owner"><FarmSettingsPage /></RequireRole>} />
+            <Route path="/perfil" element={<ProfilePage />} />
+            <Route path="/alertas" element={<AlertsPage />} />
+            <Route path="/mas" element={<MorePage />} />
+          </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Analytics />
+    </>
   )
 }
 
