@@ -11,6 +11,7 @@ import OnboardingWizard from './features/farms/OnboardingWizard'
 import FarmSelector from './features/farms/FarmSelector'
 import JoinFarmPage from './features/farms/JoinFarmPage'
 import ManageUsersPage from './features/farms/ManageUsersPage'
+import FarmSettingsPage from './features/farms/FarmSettingsPage'
 import HomePage from './features/dashboard/HomePage'
 import AnimalListPage from './features/animals/AnimalListPage'
 import AnimalDetailPage from './features/animals/AnimalDetailPage'
@@ -25,6 +26,7 @@ import HealthHistoryPage from './features/health/HealthHistoryPage'
 import ProtocolsPage from './features/health/ProtocolsPage'
 import AlertsPage from './features/alerts/AlertsPage'
 import MorePage from './features/more/MorePage'
+import ProfilePage from './features/more/ProfilePage'
 
 // Lazy: pulls in the xlsx library (~500kB) only when the import screen is visited
 const ImportAnimalsPage = lazy(() => import('./features/animals/ImportAnimalsPage'))
@@ -69,6 +71,8 @@ export default function App() {
           <Route path="/salud" element={<HealthHistoryPage />} />
           <Route path="/protocolos" element={<RequireRole role="admin"><ProtocolsPage /></RequireRole>} />
           <Route path="/usuarios" element={<RequireRole role="owner"><ManageUsersPage /></RequireRole>} />
+          <Route path="/configuracion" element={<RequireRole role="owner"><FarmSettingsPage /></RequireRole>} />
+          <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/alertas" element={<AlertsPage />} />
           <Route path="/mas" element={<MorePage />} />
         </Route>

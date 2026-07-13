@@ -88,6 +88,38 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 14 — Completada (13 jul 2026)
+
+**Rediseño de MorePage: enlaces muertos, pantallas nuevas, y color de acento por finca**
+
+Basado en un diagnóstico previo (mismo día): `/configuracion` y `/perfil` eran enlaces que no llevaban a ningún lado (no existían como rutas en `App.jsx` — caían en el catch-all y rebotaban al home sin error visible), y las pantallas ya construidas de historial de pesajes/salud no tenían entrada desde MorePage (sí eran accesibles vía tarjetas del dashboard, pero no desde el menú).
+
+- **`028_farm_accent_color.sql`**: columna `accent_color text not null default '#16a34a'` en `farms`, con constraint de formato hex (`^#[0-9a-fA-F]{6}$`)
+- **`029_farm_logos_storage.sql`**: bucket `farm-logos` (público, mismo patrón de path `${farm_id}/logo.<ext>` que `animal-photos`) + policies de `storage.objects` usando `has_farm_role()` — a diferencia de `animal-photos` (creado a mano en su momento, sin rastro en migraciones, según lo documentado en Sesión 9), este bucket se creó versionado desde el principio
+- **`FarmSettingsPage.jsx`** (`/configuracion`, gate **owner** — más estricto que la policy RLS `farms_update`, que sigue en admin+ desde Sesión 10; es una decisión de UI, no de seguridad de datos, igual que otros gaps ya documentados en el proyecto): edita `commercial_name`, sube `logo_url` a Storage, y elige `accent_color` de una paleta cerrada de 8 colores (no color picker libre — más simple para el usuario objetivo). El nombre legal (`name`) se muestra pero no es editable desde aquí
+- **`ProfilePage.jsx`** (`/perfil`, sin gate — cualquier usuario autenticado): editar nombre completo (`profiles.full_name` + espejo en `auth.updateUser({data})`), correo de solo lectura, cambiar contraseña (`auth.updateUser({password})`, reutiliza `PasswordInput.jsx` de la Sesión 13), y lista de fincas con el rol en cada una — útil para alguien en varias fincas
+- **Color de acento en el header**: `AppLayout.jsx` ahora pinta un borde inferior de 3px con `activeFarm.accent_color` y muestra el nombre de la finca junto a un punto del mismo color, debajo del logo de HatoSmart. Es una medida de seguridad, no solo estética: un operador que cambie de finca vía `FarmSelector` debe notar el cambio de color de inmediato, para no registrar datos en la finca equivocada por error
+- **`MorePage.jsx`** reagrupado en 4 secciones con headers visualmente distintos (antes lista plana): **Mi finca** (Configuración de la finca *[owner]*, Mis fincas, Unirme a otra finca) · **Catálogos** (Protocolos sanitarios *[admin+]*) · **Historial** (Historial de pesajes, Historial de salud — antes sin entrada aquí) · **Cuenta** (Gestión de usuarios *[owner]*, Mi perfil, Cerrar sesión). Una sección entera se oculta si ningún ítem es visible para el rol actual (le pasaría a "Catálogos" para un worker)
+- El `SyncBadge` del header no se tocó — sigue viviendo solo ahí, no se duplicó en MorePage
+
+**Verificado en navegador** con un bypass temporal de `PrivateRoute`/`sessionStore`/mock de `farmStore.activeFarm` (revertido por completo después, confirmado con `git diff` vacío antes de continuar):
+- Con rol `owner`: las 4 secciones completas visibles, `/configuracion` carga sin error, cambiar de swatch de color mueve el check al botón correcto, `/perfil` carga sin error y muestra la finca mock con su rol
+- Con rol `worker`: "Configuración de la finca", sección "Catálogos" completa y "Gestión de usuarios" desaparecen de MorePage; navegar directo a `/configuracion` muestra el bloqueo de `RequireRole` ("requiere un rol de dueño")
+- El borde del header tomó el `accent_color` mockeado (`#2563eb` → confirmado por `getComputedStyle`) y el nombre de la finca apareció junto al punto de color
+- **No se pudo probar contra Supabase real** (crear finca real, subir logo real, guardar accent_color real) porque las migraciones `028`/`029` no se han ejecutado en producción todavía
+
+**Build**: ✅ 3629 módulos, 0 errores.
+
+#### Pendiente para Sesión 15
+- **CRÍTICO — Ejecutar en Supabase, en orden**: `028_farm_accent_color.sql`, `029_farm_logos_storage.sql` (y `027` si aún no corrió)
+- **CRÍTICO — Probar de verdad contra producción**: guardar nombre comercial/logo/color desde `FarmSettingsPage` y confirmar que el header cambia sin recargar; cambiar contraseña y nombre desde `ProfilePage`
+- **Gap documentado a propósito**: `FarmSettingsPage` está gateada a `owner` en la UI, pero la policy RLS `farms_update` sigue permitiendo admin+ (sin cambios desde Sesión 10) — un admin no ve el botón pero técnicamente podría hacer un `UPDATE` directo vía API. Igual que el gap de `animals_update`, se decidió no tocar RLS en esta sesión por alcance
+- **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada
+- **Tests Vitest**: rules/reproduction.js, rules/categories.js, rules/weights.js, rules/health.js, rules/animalImport.js y rules/roles.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
+- **"¿Olvidaste tu contraseña?"** en LoginPage sigue siendo un `alert()` stub, sin flujo real de recuperación
+
 ### Sesión 13 — Completada (13 jul 2026)
 
 **Fusión signup + join en un solo paso, detección de correo existente, y toggle mostrar/ocultar contraseña**
