@@ -5,6 +5,7 @@ import { format, addDays } from 'date-fns'
 import { useFarmStore } from '../../stores/farmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { calcFPP } from '../../lib/rules/reproduction'
+import { recalcPossibleHeat } from '../../lib/alerts/reproductionAlerts'
 import { enqueue } from '../../lib/sync/queue'
 import { runSync } from '../../lib/sync/engine'
 import db from '../../lib/db'
@@ -124,6 +125,11 @@ export default function ReproEventForm() {
         await enqueue('animals', animalId, 'upsert', { ...selectedAnimal, repro_status: 'served' })
       }
 
+      const farmSettings = {
+        voluntary_waiting_days: activeFarm.voluntary_waiting_days,
+        heifer_min_breeding_months: activeFarm.heifer_min_breeding_months,
+      }
+
       if (eventType === 'pregnancy_check' && checkResult === 'pregnant') {
         await db.animals.update(animalId, { repro_status: 'pregnant', sync_status: 'pending' })
         await enqueue('animals', animalId, 'upsert', { ...selectedAnimal, repro_status: 'pregnant' })
@@ -161,11 +167,22 @@ export default function ReproEventForm() {
         await db.animals.put(calf)
         await enqueue('animals', calfId, 'upsert', calf)
         await db.animals.update(animalId, { repro_status: 'fresh', sync_status: 'pending' })
+
+        // Recompute possible-heat now that VWP starts counting from today's
+        // calving — same helper the batch refresh on Home/Alerts uses.
+        await recalcPossibleHeat({ ...selectedAnimal, repro_status: 'fresh' }, farmSettings)
+
         console.log('[Sync] Pushing repro_event (calving) to Supabase…')
         runSync().catch(() => {})
         navigate(`/animales/${calfId}/editar`)
         return
       }
+
+      // Recompute possible-heat immediately — mirrors how
+      // pregnancy_check_due/calving_due are generated at write time above,
+      // instead of waiting for the next dashboard/alerts load.
+      const freshAnimal = await db.animals.get(animalId)
+      if (freshAnimal) await recalcPossibleHeat(freshAnimal, farmSettings)
 
       console.log('[Sync] Pushing repro_event to Supabase…')
       runSync().catch(() => {})

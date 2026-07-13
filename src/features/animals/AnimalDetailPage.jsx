@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format, differenceInMonths, differenceInYears } from 'date-fns'
@@ -12,6 +13,10 @@ import { cn } from '../../lib/utils'
 import { calcGDP } from '../../lib/rules/weights'
 import { HEALTH_EVENT_TYPES } from '../../lib/rules/health'
 import { hasMinRole } from '../../lib/rules/roles'
+import { isHeiferAgeEstimate } from '../../lib/rules/reproduction'
+import { recalcPossibleHeat } from '../../lib/alerts/reproductionAlerts'
+import { enqueue } from '../../lib/sync/queue'
+import { runSync } from '../../lib/sync/engine'
 import { useFarmStore } from '../../stores/farmStore'
 
 const CATEGORY_LABEL = {
@@ -67,6 +72,99 @@ function InfoRow({ label, value }) {
   )
 }
 
+// View + manual override of animal.possible_heat_date. Ungated — any farm
+// role can register repro events from this same tab, so adjusting the
+// suggested date follows the same access as the rest of Reproducción.
+function PossibleHeatRow({ animal, reproEvents, farmSettings }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(animal.possible_heat_date ?? '')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!editing) setValue(animal.possible_heat_date ?? '')
+  }, [animal.possible_heat_date, editing])
+
+  const isEstimate = isHeiferAgeEstimate(animal, reproEvents ?? [])
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const updated = { ...animal, possible_heat_date: value || null, possible_heat_manual: true }
+      await db.animals.update(animal.id, { possible_heat_date: value || null, possible_heat_manual: true, sync_status: 'pending' })
+      await enqueue('animals', animal.id, 'upsert', updated)
+      runSync().catch(() => {})
+      // Keeps the possible_heat alert (AlertsPage/HomePage) lined up with
+      // the manual date instead of leaving it stuck on the old auto value.
+      await recalcPossibleHeat(updated, farmSettings)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleReset = async () => {
+    setSaving(true)
+    try {
+      const fresh = { ...animal, possible_heat_manual: false }
+      // Must persist manual:false before recalculating — recalcPossibleHeat
+      // trusts the flag on the object it's given and only ever writes
+      // possible_heat_date itself, so without this the auto-computed date
+      // would land in Dexie but the row would still read as "manual".
+      await db.animals.update(animal.id, { possible_heat_manual: false, sync_status: 'pending' })
+      await enqueue('animals', animal.id, 'upsert', fresh)
+      await recalcPossibleHeat(fresh, farmSettings)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-2 py-3 border-b border-border last:border-0">
+        <span className="text-sm text-muted-foreground">Posible celo</span>
+        <form onSubmit={handleSave} className="flex items-center gap-2">
+          <input
+            type="date"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="flex-1 h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <Button type="submit" size="sm" loading={saving}>Guardar</Button>
+          <button type="button" onClick={() => setEditing(false)} className="text-xs text-muted-foreground px-2">Cancelar</button>
+        </form>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex justify-between items-start py-3 border-b border-border last:border-0 gap-3">
+      <span className="text-sm text-muted-foreground flex-shrink-0">Posible celo</span>
+      <div className="flex flex-col items-end gap-1">
+        <span className="text-sm font-medium text-foreground text-right">
+          {/* +'T00:00' forces local-midnight parsing (matches AlertsPage/
+              HomePage) so this always agrees with the alert's due_date —
+              `new Date('yyyy-MM-dd')` alone parses as UTC midnight, which
+              displays a day early in the UTC-5 timezone this app targets. */}
+          {animal.possible_heat_date ? format(new Date(animal.possible_heat_date + 'T00:00'), 'dd/MM/yyyy') : 'Sin estimar'}
+        </span>
+        {animal.possible_heat_date && (
+          <span className="text-[11px] text-muted-foreground text-right">
+            {animal.possible_heat_manual ? 'Ajustado manualmente' : isEstimate ? 'Estimado por edad — revisar peso y condición corporal' : 'Calculado'}
+          </span>
+        )}
+        <div className="flex gap-3">
+          <button onClick={() => setEditing(true)} className="text-xs font-semibold text-brand-green">Ajustar</button>
+          {animal.possible_heat_manual && (
+            <button onClick={handleReset} disabled={saving} className="text-xs font-semibold text-muted-foreground">Recalcular</button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Section({ title, children }) {
   return (
     <div className="bg-card rounded-2xl shadow-sm overflow-hidden px-4">
@@ -114,6 +212,11 @@ export default function AnimalDetailPage() {
 
   const lastRepro = reproEvents?.[0]
   const fpp = lastRepro?.expected_calving_date
+  const showPossibleHeat = animal.repro_status !== 'pregnant' && animal.repro_status !== 'dry'
+  const farmSettings = {
+    voluntary_waiting_days: activeFarm?.voluntary_waiting_days,
+    heifer_min_breeding_months: activeFarm?.heifer_min_breeding_months,
+  }
   const lastHealthEvent = healthEvents?.[0]
 
   const tabs = animal.sex === 'female'
@@ -230,6 +333,9 @@ export default function AnimalDetailPage() {
                     label="Último evento"
                     value={`${EVENT_LABEL[lastRepro.type]?.emoji} ${EVENT_LABEL[lastRepro.type]?.label} · ${format(new Date(lastRepro.date), 'dd/MM/yyyy')}`}
                   />
+                )}
+                {showPossibleHeat && (
+                  <PossibleHeatRow animal={animal} reproEvents={reproEvents ?? []} farmSettings={farmSettings} />
                 )}
               </Section>
               <Button onClick={() => navigate(`/registrar/repro?animalId=${id}`)} className="w-full">

@@ -1,8 +1,10 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format, differenceInCalendarDays } from 'date-fns'
 import { Bell } from 'lucide-react'
 import { useFarmStore } from '../../stores/farmStore'
+import { refreshPossibleHeatAlerts } from '../../lib/alerts/reproductionAlerts'
 import db from '../../lib/db'
 import EmptyState from '../../components/ui/EmptyState'
 import { cn } from '../../lib/utils'
@@ -41,6 +43,12 @@ export default function AlertsPage() {
       : [],
     [activeFarm?.id]
   )
+
+  // On-demand recompute of possible_heat alerts — see reproductionAlerts.js
+  // for why this runs on load instead of a cron/Edge Function.
+  useEffect(() => {
+    if (activeFarm?.id) refreshPossibleHeatAlerts(activeFarm.id).catch(() => {})
+  }, [activeFarm?.id])
 
   const handleDone = async (alertId, alertType, animalId) => {
     await db.alerts.update(alertId, { status: 'done' })

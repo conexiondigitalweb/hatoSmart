@@ -29,6 +29,8 @@ export default function FarmSettingsPage() {
   const [accentColor, setAccentColor] = useState(activeFarm?.accent_color ?? '#16a34a')
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(activeFarm?.logo_url ?? null)
+  const [voluntaryWaitingDays, setVoluntaryWaitingDays] = useState(activeFarm?.voluntary_waiting_days ?? 50)
+  const [heiferMinBreedingMonths, setHeiferMinBreedingMonths] = useState(activeFarm?.heifer_min_breeding_months ?? 15)
   const [saving, setSaving] = useState(false)
 
   if (!activeFarm) return null
@@ -47,6 +49,8 @@ export default function FarmSettingsPage() {
       const payload = {
         commercial_name: commercialName.trim() || null,
         accent_color: accentColor,
+        voluntary_waiting_days: parseInt(voluntaryWaitingDays, 10) || 50,
+        heifer_min_breeding_months: parseInt(heiferMinBreedingMonths, 10) || 15,
       }
 
       if (logoFile) {
@@ -144,6 +148,40 @@ export default function FarmSettingsPage() {
                 {accentColor === color && <Check className="w-5 h-5 text-white" strokeWidth={3} />}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 pt-2 border-t border-border">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Parámetros de reproducción
+          </p>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Días de espera voluntaria postparto</label>
+            <input
+              type="number"
+              min="0"
+              value={voluntaryWaitingDays}
+              onChange={(e) => setVoluntaryWaitingDays(e.target.value)}
+              className={inputCls}
+            />
+            <span className="text-xs text-muted-foreground">
+              Días mínimos después de un parto antes de considerar a la vaca lista para volver a servicio. Se usa para sugerir la fecha de posible celo.
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Edad mínima para primera monta de novillas (meses)</label>
+            <input
+              type="number"
+              min="0"
+              value={heiferMinBreedingMonths}
+              onChange={(e) => setHeiferMinBreedingMonths(e.target.value)}
+              className={inputCls}
+            />
+            <span className="text-xs text-muted-foreground">
+              Referencia general por edad — el criterio real también depende de peso y raza, que el sistema no registra. Ajusta la fecha sugerida a mano desde la ficha de cada novilla si hace falta.
+            </span>
           </div>
         </div>
 

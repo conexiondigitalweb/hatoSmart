@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format, addDays, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -7,6 +7,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useFarmStore } from '../../stores/farmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { calcGDP } from '../../lib/rules/weights'
+import { refreshPossibleHeatAlerts } from '../../lib/alerts/reproductionAlerts'
 import db from '../../lib/db'
 import Card from '../../components/ui/Card'
 import Skeleton from '../../components/ui/Skeleton'
@@ -52,6 +53,12 @@ export default function HomePage() {
   const isDairy = DAIRY_ORIENTATIONS.includes(activeFarm?.orientation)
   const userName = user?.user_metadata?.full_name?.split(' ')[0] ?? 'ganadero'
   const dateLabel = format(today, "EEEE, d 'de' MMMM", { locale: es })
+
+  // On-demand recompute of possible_heat alerts — see reproductionAlerts.js
+  // for why this runs on load instead of a cron/Edge Function.
+  useEffect(() => {
+    if (activeFarm?.id) refreshPossibleHeatAlerts(activeFarm.id).catch(() => {})
+  }, [activeFarm?.id])
 
   // Reactive Dexie queries — auto-update when pullFromSupabase writes new data
   const animals = useLiveQuery(

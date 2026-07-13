@@ -38,7 +38,7 @@ Piloto: finca lechera + genética de ~80 cabezas con ejemplares registrados.
 ## Reglas de negocio críticas
 - FPP (Fecha Probable de Parto) = fecha de servicio + farm.gestation_days (default 283 días)
 - Alerta de secado = FPP − farm.dry_off_days_before_calving (default 60 días)
-- Posible celo = último celo o servicio + 21 días (solo si no hay preñez confirmada)
+- Posible celo (solo si no hay preñez confirmada ni está en secado): novilla sin servicio → fecha_nacimiento + farm.heifer_min_breeding_months (default 15 meses, estimado); parto sin servicio posterior → fecha_parto + farm.voluntary_waiting_days (default 50 días); servicio sin chequeo de preñez positivo posterior → fecha_servicio + 21 días, repitiendo cada 21 días. Siempre ajustable a mano por animal (ver `rules/reproduction.js` → `calcPossibleHeatDate`)
 - GDP (Ganancia Diaria de Peso) = (peso actual − peso anterior) / días entre pesajes
 - El registro de un parto crea automáticamente el animal cría (con madre, padre del servicio y trazabilidad)
 - Categoría del animal se sugiere automáticamente por edad + sexo + eventos reproductivos (editable siempre)
@@ -88,6 +88,39 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 15 — Completada (13 jul 2026)
+
+**Alertas automáticas de posible celo, con parámetros configurables por finca**
+
+- **`030_possible_heat.sql`**: `farms.voluntary_waiting_days` (default 50) y `farms.heifer_min_breeding_months` (default 15) — antes hardcodeados como 21 días fijos sin base de datos; `animals.possible_heat_date` (fecha activa, auto o manual) y `animals.possible_heat_manual` (si el valor actual fue ajustado a mano y no debe recalcularse hasta el próximo evento reproductivo)
+- **`rules/reproduction.js` → `calcPossibleHeatDate(animal, reproEvents, farmSettings)`**: función pura, cubre exactamente los 4 casos del spec (novilla sin servicio por edad; parto sin servicio por VWP; servicio sin chequeo positivo, repite cada 21 días hasta la próxima ocurrencia; preñez confirmada → null). Reemplaza `calcNextHeatDate`/`isHeatDue`, que existían sin uso desde antes (parecían placeholders para esto mismo) — se eliminaron en vez de dejarlas como código muerto paralelo. `isHeiferAgeEstimate()` nueva, para el copy "Estimado, revisar peso y condición corporal"
+- **Decisión de arquitectura — cálculo on-demand, no Edge Function/cron**: dos de los 4 casos (novilla envejeciendo hacia la edad mínima, y un servicio sin resolver rodando a su próximo ciclo de 21 días) no tienen ningún `repro_event` que dispare un recálculo — solo cambian porque pasó tiempo en el calendario. Un cron necesitaría el proyecto en línea en un horario fijo y de todos modos iría a destiempo respecto a una finca offline. Se optó por recalcular bajo demanda en el cliente (`src/lib/alerts/reproductionAlerts.js` → `refreshPossibleHeatAlerts(farmId)`), llamado al montar `HomePage`/`AlertsPage` — mismo patrón que ya usa el resto del sync (Dexie como fuente de verdad, upserts idempotentes baratos), sin infraestructura nueva. Los casos que sí tienen un evento disparador (servicio, parto, chequeo de preñez, secado) además recalculan **inmediatamente** al guardar el evento en `ReproEventForm` (`recalcPossibleHeat()`), igual que ya hacían `pregnancy_check_due`/`calving_due` — el recálculo por lote solo cubre lo que un write no puede
+- **Reutiliza el sistema de alertas existente**: `type: 'possible_heat'` ya estaba en el check constraint de `alerts` y en `ALERT_CONFIG`/`ALERT_EMOJI` de `AlertsPage`/`HomePage` desde antes (Sesión 4), solo faltaba quien la generara — mismo patrón que `health_due`. A diferencia de `health_due` (se crea una vez, en el momento del evento), `possible_heat` se **upserta en el mismo id** cada vez que cambia, porque su fecha se mueve sola con el calendario (casos 1 y 3) — un alta nueva cada vez habría duplicado alertas
+- **`FarmSettingsPage.jsx`**: sección nueva "Parámetros de reproducción" con los dos campos, mismo patrón de inputs que el resto de la página
+- **`AnimalDetailPage.jsx`** (tab Reproducción, sin gate — mismo acceso que registrar un evento reproductivo): fila "Posible celo" con la fecha (oculta si `pregnant`/`dry`), badge "Ajustado manualmente" / "Estimado por edad" / "Calculado", botón "Ajustar" (date input inline, guarda con `possible_heat_manual: true` y sincroniza la alerta en el mismo paso) y "Recalcular" (solo visible si manual — vuelve a `false` y dispara `recalcPossibleHeat` de inmediato)
+- **Bug encontrado y corregido durante la verificación** (no en producción, detectado antes de commitear): el guardado manual originalmente solo escribía `animals.possible_heat_date` sin tocar la fila de `alerts` — la ficha mostraba la fecha ajustada pero `AlertsPage` seguía mostrando la fecha automática vieja. Corregido para que el guardado manual llame a `recalcPossibleHeat` (que sincroniza la alerta) en el mismo paso. Un segundo bug relacionado: "Recalcular" recomputaba la fecha correctamente pero nunca dejaba `possible_heat_manual` en `false` en Dexie (el objeto pasado a `recalcPossibleHeat` tenía el flag en memoria, pero nunca se persistía antes de la llamada) — corregido escribiendo `possible_heat_manual: false` explícitamente antes de recalcular
+- **Hallazgo — no corregido, fuera de alcance de esta sesión**: `new Date('yyyy-MM-dd')` (sin sufijo de hora) parsea como medianoche UTC; en `America/Bogotá` (UTC-5, el timezone objetivo de la app) esto se muestra un día antes de lo esperado al reformatear. `AlertsPage`/`HomePage`/`MilkDashboard` ya evitan esto agregando `+ 'T00:00'` antes de crear el `Date`, pero `calcFPP`/`calcDryOffDate`/`calcNextDueDate` (preexistentes) y ahora `calcPossibleHeatDate` (nueva, pero fiel al mismo patrón ya establecido en `rules/*.js`) NO lo hacen — el cálculo en sí mismo queda corrido un día, no solo la vista. Se corrigió puntualmente el display de `possible_heat_date` en la ficha (usaba el patrón sin el sufijo, lo que hacía que se viera un día distinto al de la alerta para el mismo valor guardado) para que coincida con `AlertsPage`, pero el problema de fondo en el cálculo (`rules/*.js` completo) no se tocó — es un problema sistémico preexistente, no algo introducido en esta sesión, y arreglarlo bien requiere auditar todo el manejo de fechas de la app, no solo este módulo
+
+**Verificado en navegador** con el mismo bypass temporal de `PrivateRoute`/`sessionStore`/mock de `farmStore` (revertido por completo después, `git diff` vacío confirmado) y datos sembrados directo en Dexie vía `import()` dinámico del módulo `db.js`:
+- **Novilla sin servicio** (nacida hace ~16 meses, `heifer_min_breeding_months=15`): alerta generada, mensaje con "revisar peso y condición corporal"
+- **Vaca recién parida sin servicio** (parto hace 10 días, `voluntary_waiting_days=50`): alerta generada con fecha parto+50d
+- **Vaca servida sin confirmar preñez** (servicio hace 25 días): alerta generada con fecha servicio+21d, avanzada al próximo ciclo (>= hoy)
+- **Ajuste manual desde la ficha**: cambia la fecha, queda marcada "Ajustado manualmente", la alerta en Dexie se actualiza al mismo valor (después del fix)
+- **Recalcular**: vuelve al valor automático y el flag manual queda en `false` (después del fix)
+- **Evento disparador real** (registrar chequeo de preñez positivo vía `ReproEventForm` para la vaca servida): `repro_status` → `pregnant`, `possible_heat_date`/`possible_heat_manual` se limpian, la alerta pendiente se descarta — confirmado que ya no aparece en `AlertsPage`, sin afectar las otras dos alertas
+- **No se pudo probar contra Supabase real** (la migración `030` no se ha ejecutado en producción todavía — los intentos de sync mostraron el error esperado `Could not find the 'possible_heat_date' column`, confirmando que el fallo es por la migración pendiente y no por el código)
+
+**Build**: ✅ 3630 módulos, 0 errores.
+
+#### Pendiente para Sesión 16
+- **CRÍTICO — Ejecutar en Supabase, en orden**: `030_possible_heat.sql` (y `028`/`029` si aún no corrieron)
+- **CRÍTICO — Probar de verdad contra producción**: confirmar que el push de `animals`/`alerts` con los campos nuevos sincroniza sin error una vez aplicada la migración
+- **Hallazgo de timezone sin corregir** (ver arriba): `rules/reproduction.js` (`calcFPP`, `calcDryOffDate`, `calcPossibleHeatDate`) y `rules/health.js` (`calcNextDueDate`) calculan un día antes de lo esperado en timezones detrás de UTC porque parsean fechas `yyyy-MM-dd` sin forzar medianoche local. Afecta FPP, alerta de secado, próxima dosis sanitaria y ahora posible celo — no es nuevo de esta sesión, pero esta sesión lo hizo visible al comparar la ficha contra las alertas. Vale la pena una sesión dedicada a auditar todo el manejo de fechas de la app en vez de parchar caso por caso
+- **Tests Vitest**: sigue pendiente desde hace varias sesiones — rules/reproduction.js (incluyendo el nuevo `calcPossibleHeatDate`, dada su complejidad de casos), rules/categories.js, rules/weights.js, rules/health.js, rules/animalImport.js y rules/roles.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
+- **"¿Olvidaste tu contraseña?"** en LoginPage sigue siendo un `alert()` stub, sin flujo real de recuperación
+
 ### Sesión 14 — Completada (13 jul 2026)
 
 **Rediseño de MorePage: enlaces muertos, pantallas nuevas, y color de acento por finca**
