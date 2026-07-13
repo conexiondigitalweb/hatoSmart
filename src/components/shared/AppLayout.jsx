@@ -1,11 +1,35 @@
+import { useEffect } from 'react'
 import { Outlet, Link } from 'react-router-dom'
 import { useFarmStore } from '../../stores/farmStore'
 import BottomNav from '../ui/BottomNav'
 import SyncBadge from './SyncBadge'
 
+// Same brand green as the manifest/index.html default (vite.config.js,
+// index.html <meta name="theme-color">) — used to restore the browser/PWA
+// status bar color when there's no active farm, or after leaving AppLayout.
+const DEFAULT_THEME_COLOR = '#16a34a'
+
 export default function AppLayout() {
   const activeFarm = useFarmStore((s) => s.activeFarm)
-  const accentColor = activeFarm?.accent_color || '#16a34a'
+  const accentColor = activeFarm?.accent_color || DEFAULT_THEME_COLOR
+
+  // Mirrors the farm's accent color onto the actual browser/PWA chrome
+  // (status bar, address bar tint on Android Chrome), not just the header
+  // border — same reasoning as the border: a glance should be enough to
+  // tell which farm you're in. The manifest.json theme_color stays fixed
+  // (it's static, only read at install time) — this updates the live
+  // <meta name="theme-color"> tag instead.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', accentColor)
+  }, [accentColor])
+
+  useEffect(() => {
+    return () => {
+      const meta = document.querySelector('meta[name="theme-color"]')
+      if (meta) meta.setAttribute('content', DEFAULT_THEME_COLOR)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
