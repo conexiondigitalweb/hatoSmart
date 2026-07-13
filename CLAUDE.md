@@ -87,6 +87,45 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 10 — Completada (13 jul 2026)
+
+**Roles reales (owner > admin > worker) + invitación por PIN.** Hasta esta sesión `memberships.role` existía en el schema pero no lo usaba nada (diagnóstico de Sesión 9). Ahora sí:
+
+**RLS — `has_farm_role(farm_id, min_role)`** (`024_role_enforcement.sql`)
+- Jerarquía: owner=3, admin=2, worker=1; verdadero si el rol del usuario en esa finca es ≥ min_role. Documentado en el propio SQL
+- `animals_insert` → admin+ (dar de alta un animal no es un "registro diario"). `health_protocols_insert`/`_update` → admin+ (catálogo = configuración). `farms_update` → admin+ (antes cualquier miembro podía editar la finca)
+- `memberships`: `insert`/`update`/`delete` ahora exigen owner (antes no existían policies de update/delete — **cambiar rol o quitar a alguien era imposible incluso para el dueño**). Se agregó `memberships_select_owner` para que el owner vea a todos los miembros de su finca (antes cada quien solo veía su propia membership, ni el dueño podía listar su equipo)
+- **Gap dejado a propósito, documentado en el SQL**: `animals_update` NO se restringió a admin+. Un worker registrando un evento de "servicio" o "parto" (permitido — es un registro diario de reproducción) dispara efectos automáticos sobre `animals` (repro_status, crear la cría) escritos directo a Dexie → cola → `runSync()` hace upsert genérico, sin una RPC intermedia que distinga "edición manual" de "efecto automático". RLS no puede diferenciar columnas dentro de un mismo UPDATE sin un trigger que compare OLD/NEW. Se decidió (con el usuario, antes de implementar) reforzar esto solo en la UI en vez de bloquearlo en RLS — un worker técnicamente podría hacer un UPDATE directo a animals vía API si se lo propone. Si se necesita blindaje real, la solución es mover esos efectos a una función `SECURITY DEFINER` dedicada
+
+**Invitación por PIN** (`025_farm_invitations.sql`)
+- Tabla `farm_invitations` (id, account_id, farm_id, code único, role admin\|worker, created_by, expires_at, used_at, used_by) — RLS: solo el owner ve/crea/invalida los códigos de su finca
+- `redeem_farm_invitation(p_code)` — `SECURITY DEFINER`: valida código (existe, no usado, no expirado, el usuario no es ya miembro) y crea la membership en una sola operación. Es la única puerta de entrada al canje — nadie puede leer la tabla de invitaciones directamente salvo el owner
+- `get_farm_members(p_farm_id)` — `SECURITY DEFINER`: junta `memberships`+`auth.users`+`profiles` para traer email+nombre+rol de cada miembro (el cliente no puede consultar `auth.users` directo)
+- Código: 6 caracteres, alfabeto sin 0/O/1/I/L para evitar confusión al dictarlo, generado client-side con `crypto.getRandomValues`, expira a las 48h
+- `farm_invitations` **no pasa por Dexie/sync engine** — es la única tabla del proyecto que habla directo con Supabase (como auth/onboarding), porque generar/canjear un código es intrínsecamente una acción en línea, no un registro de campo offline-first
+
+**UI**
+- `ManageUsersPage.jsx` (`/usuarios`, solo owner): lista de miembros vía `get_farm_members`, cambiar rol / quitar usuario (deshabilitado sobre la fila propia y sobre el owner), generar código (Dialog con selector de rol → PIN grande con botón copiar + link de WhatsApp), lista de códigos activos con invalidar
+- `JoinFarmPage.jsx` (`/unirse`): input de PIN, llama `redeem_farm_invitation`, trae la finca y la agrega a `farmStore`. Reutilizable desde dos entradas: enlace nuevo en el Paso 1 de `OnboardingWizard` ("¿Tienes un código? Únete a una finca") para usuario nuevo, y desde `MorePage` ("Unirme a otra finca") para usuario que ya tiene finca(s)
+- `sessionStore.loadFarmsForUser()` no traía `role` (solo `LoginPage.jsx` lo hacía) — se corrigió para que `activeFarm.role` esté disponible también después de recargar la página, no solo justo después de iniciar sesión
+- `src/lib/rules/roles.js`: `hasMinRole()` (espejo en JS de `has_farm_role`) + `ROLE_LABELS`. Gating aplicado en: botón editar de `AnimalDetailPage`, botones Nuevo/Importar/FAB de `AnimalListPage`, y visibilidad de "Protocolos sanitarios"/"Gestión de usuarios" en `MorePage`
+- `RequireRole.jsx` (guard de ruta, no solo de botón): envuelve `/animales/nuevo`, `/animales/:id/editar`, `/animales/importar`, `/protocolos` (admin+) y `/usuarios` (owner). Necesario porque ocultar un botón no alcanza — Dexie no tiene RLS, así que un worker que entrara directo a la URL vería un formulario que "guarda" localmente pero nunca sincroniza (queda `pending` para siempre sin ningún mensaje de error). El guard evita ese engaño
+
+**Verificación**: se probó el gating de UI en el navegador alternando `activeFarm.role` entre `worker` y `owner` (con bypass temporal de `PrivateRoute`, revertido después) — confirmado que botones se ocultan/muestran correctamente y que `RequireRole` bloquea `/animales/nuevo` a un worker con el mensaje esperado. **No se pudo probar contra Supabase real**: las migraciones `024`/`025` no se han ejecutado en producción todavía (no hay acceso de escritura a la base de datos desde este entorno), así que el canje de código, `get_farm_members` y el enforcement real de RLS quedan sin probar end-to-end hasta que el usuario las corra y se repita la prueba.
+
+**Build**: ✅ 3625 módulos, 0 errores.
+
+#### Pendiente para Sesión 11
+- **CRÍTICO — Ejecutar en Supabase, en orden**: `023_create_account_and_farm.sql`, `024_role_enforcement.sql`, `025_farm_invitations.sql` (y `019`–`022` si aún no corrieron)
+- **CRÍTICO — Probar de verdad el flujo de invitación** una vez aplicadas las migraciones: owner genera código worker → segundo usuario lo canjea → confirmar que queda con `role='worker'`, que no puede editar/eliminar animales, y que sí puede registrar ordeño/pesajes/sanidad/reproducción
+- **Gap de `animals_update`**: si se quiere blindar a nivel de RLS (no solo UI) que un worker no pueda editar animales manualmente, hay que mover los efectos automáticos de reproducción (repro_status, crear cría) a una función `SECURITY DEFINER` y recién ahí restringir `animals_update` a admin+
+- **Eliminar la finca**: sigue sin UI/feature; cuando se construya, no puede depender de la policy de `farms_update` tal cual (no distingue "cambiar moneda" de "poner deleted_at") — va a necesitar su propio mecanismo owner-only
+- **Pantalla Más (MorePage)**: rediseño con shadcn/ui — perfil, configuración de finca, cerrar sesión
+- **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada
+- **Tests Vitest**: rules/reproduction.js, rules/categories.js, rules/weights.js, rules/health.js, rules/animalImport.js y rules/roles.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
+
 ### Sesión 9 — Completada (13 jul 2026)
 
 **Rescate de `create_account_and_farm` — ya versionada**

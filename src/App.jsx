@@ -3,10 +3,13 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSessionStore } from './stores/sessionStore'
 import AppLayout from './components/shared/AppLayout'
 import PrivateRoute from './components/shared/PrivateRoute'
+import RequireRole from './components/shared/RequireRole'
 import LoginPage from './features/auth/LoginPage'
 import SignupPage from './features/auth/SignupPage'
 import OnboardingWizard from './features/farms/OnboardingWizard'
 import FarmSelector from './features/farms/FarmSelector'
+import JoinFarmPage from './features/farms/JoinFarmPage'
+import ManageUsersPage from './features/farms/ManageUsersPage'
 import HomePage from './features/dashboard/HomePage'
 import AnimalListPage from './features/animals/AnimalListPage'
 import AnimalDetailPage from './features/animals/AnimalDetailPage'
@@ -39,20 +42,23 @@ export default function App() {
       {/* Auth required, no farm needed */}
       <Route path="/onboarding" element={<OnboardingWizardGuard />} />
       <Route path="/seleccionar-finca" element={<FarmSelectorGuard />} />
+      <Route path="/unirse" element={<JoinFarmPageGuard />} />
 
       {/* Private routes — need session + active farm */}
       <Route element={<PrivateRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/animales" element={<AnimalListPage />} />
-          <Route path="/animales/nuevo" element={<AnimalFormPage />} />
+          <Route path="/animales/nuevo" element={<RequireRole role="admin"><AnimalFormPage /></RequireRole>} />
           <Route path="/animales/importar" element={
-            <Suspense fallback={<div className="p-4 text-center text-sm text-muted-foreground mt-8">Cargando...</div>}>
-              <ImportAnimalsPage />
-            </Suspense>
+            <RequireRole role="admin">
+              <Suspense fallback={<div className="p-4 text-center text-sm text-muted-foreground mt-8">Cargando...</div>}>
+                <ImportAnimalsPage />
+              </Suspense>
+            </RequireRole>
           } />
           <Route path="/animales/:id" element={<AnimalDetailPage />} />
-          <Route path="/animales/:id/editar" element={<AnimalFormPage />} />
+          <Route path="/animales/:id/editar" element={<RequireRole role="admin"><AnimalFormPage /></RequireRole>} />
           <Route path="/ordeño" element={<MilkFormPage />} />
           <Route path="/registrar" element={<RegisterSheet />} />
           <Route path="/registrar/repro" element={<ReproEventForm />} />
@@ -60,7 +66,8 @@ export default function App() {
           <Route path="/pesajes" element={<WeightHistoryPage />} />
           <Route path="/registrar/salud" element={<HealthEventFormPage />} />
           <Route path="/salud" element={<HealthHistoryPage />} />
-          <Route path="/protocolos" element={<ProtocolsPage />} />
+          <Route path="/protocolos" element={<RequireRole role="admin"><ProtocolsPage /></RequireRole>} />
+          <Route path="/usuarios" element={<RequireRole role="owner"><ManageUsersPage /></RequireRole>} />
           <Route path="/alertas" element={<AlertsPage />} />
           <Route path="/mas" element={<MorePage />} />
         </Route>
@@ -86,4 +93,12 @@ function FarmSelectorGuard() {
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
   return <FarmSelector />
+}
+
+function JoinFarmPageGuard() {
+  const user = useSessionStore((s) => s.user)
+  const loading = useSessionStore((s) => s.loading)
+  if (loading) return null
+  if (!user) return <Navigate to="/login" replace />
+  return <JoinFarmPage />
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -68,6 +68,9 @@ function Step1({ onNext }) {
           Continuar
         </Button>
       </form>
+      <Link to="/unirse" className="text-center text-sm text-brand-green font-semibold hover:underline">
+        ¿Tienes un código de invitación? Únete a una finca
+      </Link>
     </div>
   )
 }

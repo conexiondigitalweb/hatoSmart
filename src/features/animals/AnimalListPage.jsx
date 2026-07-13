@@ -10,6 +10,7 @@ import Badge from '../../components/ui/Badge'
 import Skeleton from '../../components/ui/Skeleton'
 import EmptyState from '../../components/ui/EmptyState'
 import { cn } from '../../lib/utils'
+import { hasMinRole } from '../../lib/rules/roles'
 
 const CATEGORIES = [
   { value: '',          label: 'Todos' },
@@ -49,6 +50,7 @@ function initials(animal) {
 export default function AnimalListPage() {
   const navigate = useNavigate()
   const activeFarm = useFarmStore((s) => s.activeFarm)
+  const canManageAnimals = hasMinRole(activeFarm?.role, 'admin')
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')
 
@@ -82,6 +84,7 @@ export default function AnimalListPage() {
           <h1 className="text-xl font-bold text-foreground">
             Animales{animals?.length ? ` (${animals.length})` : ''}
           </h1>
+          {canManageAnimals && (
           <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/animales/importar')}
@@ -98,6 +101,7 @@ export default function AnimalListPage() {
             Nuevo
           </button>
           </div>
+          )}
         </div>
 
         {/* Search */}
@@ -193,13 +197,15 @@ export default function AnimalListPage() {
       </div>
 
       {/* FAB */}
-      <button
-        onClick={() => navigate('/animales/nuevo')}
-        className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-brand-green text-white shadow-lg flex items-center justify-center z-20 active:scale-95 transition-transform"
-        aria-label="Agregar animal"
-      >
-        <Plus className="w-6 h-6" strokeWidth={2.5} />
-      </button>
+      {canManageAnimals && (
+        <button
+          onClick={() => navigate('/animales/nuevo')}
+          className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-brand-green text-white shadow-lg flex items-center justify-center z-20 active:scale-95 transition-transform"
+          aria-label="Agregar animal"
+        >
+          <Plus className="w-6 h-6" strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   )
 }

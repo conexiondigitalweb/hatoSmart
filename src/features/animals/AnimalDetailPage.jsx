@@ -11,6 +11,8 @@ import db from '../../lib/db'
 import { cn } from '../../lib/utils'
 import { calcGDP } from '../../lib/rules/weights'
 import { HEALTH_EVENT_TYPES } from '../../lib/rules/health'
+import { hasMinRole } from '../../lib/rules/roles'
+import { useFarmStore } from '../../stores/farmStore'
 
 const CATEGORY_LABEL = {
   calf: 'Ternero/a', heifer: 'Novilla', cow: 'Vaca',
@@ -79,6 +81,8 @@ function Section({ title, children }) {
 export default function AnimalDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const activeFarm = useFarmStore((s) => s.activeFarm)
+  const canEdit = hasMinRole(activeFarm?.role, 'admin')
 
   const animal    = useLiveQuery(() => db.animals.get(id), [id])
   const mother    = useLiveQuery(() => animal?.mother_id ? db.animals.get(animal.mother_id) : null, [animal?.mother_id])
@@ -134,12 +138,14 @@ export default function AnimalDetailPage() {
           <span className="text-white/80 font-medium flex-1 truncate text-sm">
             {animal.name || animal.tag_number || 'Animal'}
           </span>
-          <button
-            onClick={() => navigate(`/animales/${id}/editar`)}
-            className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-brand-green"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => navigate(`/animales/${id}/editar`)}
+              className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-brand-green"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         <div className="relative flex items-center gap-4">

@@ -8,12 +8,12 @@ async function loadFarmsForUser(userId) {
 
   const { data, error } = await supabase
     .from('memberships')
-    .select('farms(*)')
+    .select('farm_id, role, farms(*)')
     .eq('user_id', userId)
 
   if (error || !data?.length) return
 
-  const farms = data.map((m) => m.farms).filter(Boolean)
+  const farms = data.map((m) => m.farms ? { ...m.farms, role: m.role } : null).filter(Boolean)
   if (!farms.length) return
 
   useFarmStore.getState().setFarms(farms)

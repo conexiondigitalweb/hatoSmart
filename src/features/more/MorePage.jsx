@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useFarmStore } from '../../stores/farmStore'
+import { hasMinRole } from '../../lib/rules/roles'
 import Card from '../../components/ui/Card'
 
-const menuItems = [
+const baseMenuItems = [
   { emoji: '🏡', label: 'Mis fincas', to: '/seleccionar-finca' },
-  { emoji: '💉', label: 'Protocolos sanitarios', to: '/protocolos' },
+  { emoji: '🔑', label: 'Unirme a otra finca', to: '/unirse' },
+  { emoji: '💉', label: 'Protocolos sanitarios', to: '/protocolos', minRole: 'admin' },
+  { emoji: '👥', label: 'Gestión de usuarios', to: '/usuarios', minRole: 'owner' },
   { emoji: '⚙️', label: 'Configuración', to: '/configuracion' },
   { emoji: '👤', label: 'Mi perfil', to: '/perfil' },
 ]
@@ -16,8 +19,11 @@ export default function MorePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const clearSession = useSessionStore((s) => s.clearSession)
+  const activeFarm = useFarmStore((s) => s.activeFarm)
   const setFarms = useFarmStore((s) => s.setFarms)
   const setActiveFarm = useFarmStore((s) => s.setActiveFarm)
+
+  const menuItems = baseMenuItems.filter((item) => !item.minRole || hasMinRole(activeFarm?.role, item.minRole))
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
