@@ -87,6 +87,29 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 11 — Completada (14 jul 2026)
+
+**Fix — "permission denied for table farm_invitations" en ManageUsersPage**
+- Causa real confirmada con datos, no adivinada: se comparó `information_schema.role_table_grants` entre tablas viejas (`weighings`, `memberships` — tienen SELECT/INSERT/UPDATE/DELETE para `authenticated`) y tablas nuevas creadas por migración (`farm_invitations` de la Sesión 10, `health_protocols` de la Sesión 8 — **solo tenían REFERENCES/TRIGGER/TRUNCATE**, sin ningún CRUD). No era un problema de las políticas RLS de `025_farm_invitations.sql` (esas están bien escritas) — Postgres rechaza el acceso a nivel de `GRANT` de tabla *antes* de siquiera evaluar RLS, por eso el error era "permission denied" (típico de falta de grant) y no un resultado vacío (típico de rechazo de RLS)
+- `CREATE TABLE` no otorga privilegios a otros roles por sí solo; las tablas originales del proyecto los tienen por un privilegio por defecto configurado al crear el proyecto de Supabase, que aparentemente no se aplicó a tablas creadas después vía migración
+- **`health_protocols` tenía el mismo bug latente** aunque no fue lo reportado — nunca se había probado `ProtocolsPage` contra producción, así que probablemente estaba rota desde la Sesión 8 sin que nadie lo notara. Se corrigió en la misma migración para no repetir el susto
+- `026_fix_missing_table_grants.sql`: `grant select, insert, update on farm_invitations, health_protocols to authenticated` (no se otorga DELETE porque ninguna de las dos tablas tiene política RLS de DELETE — se invalida/borra vía UPDATE de `expires_at`/`deleted_at`, no con un DELETE físico)
+- **Pendiente de verificar por el usuario**: cualquier tabla nueva que se cree de aquí en adelante debería confirmar sus grants con la misma consulta a `information_schema.role_table_grants` antes de darla por funcional — quedó anotado abajo
+
+**Build**: ✅ 3625 módulos, 0 errores (cambio es solo SQL, no toca código de la app).
+
+#### Pendiente para Sesión 12
+- **CRÍTICO — Ejecutar en Supabase, en orden**: `023`, `024`, `025`, `026` (y `019`–`022` si aún no corrieron)
+- **CRÍTICO — Probar de verdad el flujo de invitación** una vez aplicadas las migraciones: owner genera código worker → segundo usuario lo canjea → confirmar que queda con `role='worker'`, que no puede editar/eliminar animales, y que sí puede registrar ordeño/pesajes/sanidad/reproducción
+- **Convención nueva para migraciones futuras**: después de crear cualquier tabla nueva, correr `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_schema='public' and table_name='<tabla_nueva>'` y comparar contra una tabla vieja — si faltan SELECT/INSERT/UPDATE/DELETE para `authenticated`, agregar el `GRANT` explícito en la misma migración
+- **Gap de `animals_update`**: si se quiere blindar a nivel de RLS (no solo UI) que un worker no pueda editar animales manualmente, hay que mover los efectos automáticos de reproducción (repro_status, crear cría) a una función `SECURITY DEFINER` y recién ahí restringir `animals_update` a admin+
+- **Eliminar la finca**: sigue sin UI/feature; cuando se construya, no puede depender de la policy de `farms_update` tal cual — va a necesitar su propio mecanismo owner-only
+- **Pantalla Más (MorePage)**: rediseño con shadcn/ui — perfil, configuración de finca, cerrar sesión
+- **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada
+- **Tests Vitest**: rules/reproduction.js, rules/categories.js, rules/weights.js, rules/health.js, rules/animalImport.js y rules/roles.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
+
 ### Sesión 10 — Completada (13 jul 2026)
 
 **Roles reales (owner > admin > worker) + invitación por PIN.** Hasta esta sesión `memberships.role` existía en el schema pero no lo usaba nada (diagnóstico de Sesión 9). Ahora sí:
