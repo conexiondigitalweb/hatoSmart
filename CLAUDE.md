@@ -87,6 +87,35 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 9 — Completada (13 jul 2026)
+
+**Rescate de `create_account_and_farm` — ya versionada**
+- Existía únicamente creada a mano en el SQL Editor de Supabase desde la Sesión 5 (así lo dejó documentado esa sesión) y nunca se había llevado a una migración. Si el proyecto de Supabase se reconstruyera desde `supabase/migrations/`, el onboarding se habría roto por falta de esta función
+- Se trajo la definición **real** vía introspección de catálogo (`pg_get_functiondef`, `information_schema.routine_privileges`) — no se asumió nada de lo que decía CLAUDE.md sobre qué debía hacer
+- `supabase/migrations/023_create_account_and_farm.sql`: copia exacta de lo que corre hoy en producción — `SECURITY DEFINER`, `SET search_path TO 'public'`, mismo cuerpo (crea `accounts` + `farms` + `memberships` con `role='owner'`, retorna `jsonb` con `account_id`/`farm_id`). Es un `CREATE OR REPLACE FUNCTION`, así que aplicarla no cambia el comportamiento actual — solo lo versiona
+- Grants confirmados: `EXECUTE` para `PUBLIC` y `postgres` — es el comportamiento por defecto de Postgres al crear una función (no requiere `GRANT` explícito adicional)
+
+**Auditoría de objetos "sueltos"** (funciones/triggers/policies aplicados en Supabase pero ausentes del repo): se cruzaron las 5 funciones, 12 triggers y 38 políticas RLS que existen hoy en `public` contra el texto de todas las migraciones. Resultado: **`create_account_and_farm` era el único objeto huérfano.** Todo lo demás ya estaba versionado:
+- `create_demo_farm` → `017_seed.sql`
+- `has_farm_access` → `014_rls_policies.sql`
+- `update_updated_at_column` y los 12 triggers `trg_*_updated_at` → `015_triggers.sql` (11) + `021_health_protocols.sql` (1, agregado en Sesión 8)
+- Las 38 políticas RLS → todas rastreadas a `002`/`013`/`014`/`018`/`019`/`021`/`022`
+
+**Diagnóstico de tenants/roles/invitaciones** (a pedido, sin implementar cambios): se dejó registrado el hallazgo de que `memberships.role` (`owner`/`admin`/`worker`) y `memberships.permissions` (jsonb) existen en el schema pero **no los usa ninguna política RLS ni la UI** — `has_farm_access()` no distingue rol, y `LoginPage.jsx` trae `role` pero nunca se vuelve a leer. Tampoco existe flujo de invitación (no hay tabla, RPC ni UI), aunque la política `memberships_insert` ya autoriza al dueño de la cuenta a insertar una membership para *otro* `user_id` — es la mitad de la tubería, falta buscar usuario por correo + estado de invitación + UI. El modelo multi-finca por usuario funciona en lectura (`FarmSelector`, `sessionStore`) pero no hay forma de que un usuario termine con una segunda finca salvo insertar filas a mano. Detalle completo de estos hallazgos quedó en la conversación de diagnóstico, no repetido aquí — ver commit de esta sesión.
+
+**Build**: no aplica (solo SQL + documentación, sin cambios de código de la app).
+
+#### Pendiente para Sesión 10
+- **CRÍTICO — Ejecutar en Supabase**: `023_create_account_and_farm.sql` (recomendado correrla igual aunque sea un no-op, para que el historial de migraciones aplicadas quede consistente), y confirmar `019`–`022` si aún no se han ejecutado
+- **Roles sin aplicar**: decidir si `memberships.role`/`permissions` se implementan de verdad (RLS + UI) o se retiran del schema si no se van a usar pronto
+- **Flujo de invitación**: no existe — definir mecanismo (buscar por correo requiere una Edge Function o RPC con `SECURITY DEFINER`, ya que el cliente no puede consultar `auth.users` directamente)
+- **Multi-finca, lado de escritura**: no hay forma de agregar una segunda finca a una cuenta existente ni de unirse a la cuenta de otra persona, más allá de insertar filas a mano
+- **Pantalla Más (MorePage)**: rediseño con shadcn/ui — perfil, configuración de finca, cerrar sesión
+- **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada
+- **Tests Vitest**: rules/reproduction.js, rules/categories.js, rules/weights.js, rules/health.js y rules/animalImport.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
+
 ### Sesión 8 — Completada (12 jul 2026)
 
 **Fix crítico — pantalla en blanco en "Agregar animal"**
