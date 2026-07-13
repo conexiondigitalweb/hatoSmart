@@ -104,9 +104,12 @@ function JoinFarmPageGuard() {
   if (!user) {
     // Stash the code so it survives the login/signup detour — the ?code=
     // query param would otherwise be lost once we redirect away from here.
+    // Signup is the default landing spot for an invite link (most invitees
+    // are new); SignupPage links back to /login for people who already
+    // have an account, and both pages redeem the stashed code inline.
     const code = searchParams.get('code')
     if (code) localStorage.setItem(PENDING_INVITE_CODE_KEY, code)
-    return <Navigate to="/login" replace />
+    return <Navigate to="/registro" replace />
   }
   return <JoinFarmPage />
 }

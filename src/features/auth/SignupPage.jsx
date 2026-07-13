@@ -1,13 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Check, X, Mail } from 'lucide-react'
+import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { useFarmStore } from '../../stores/farmStore'
+import db from '../../lib/db'
 import Button from '../../components/ui/Button'
+import PasswordInput from '../../components/ui/PasswordInput'
 import { cn } from '../../lib/utils'
-import { PENDING_INVITE_CODE_KEY } from '../../lib/inviteCode'
+import { PENDING_INVITE_CODE_KEY, fetchInvitePreview } from '../../lib/inviteCode'
+import { ROLE_LABELS } from '../../lib/rules/roles'
 
 const schema = z.object({
   full_name: z.string().min(1, 'Ingresa tu nombre').min(2, 'Mínimo 2 caracteres'),
@@ -36,8 +41,27 @@ const fieldCls = (hasError) =>
 
 export default function SignupPage() {
   const navigate = useNavigate()
+  const setFarms = useFarmStore((s) => s.setFarms)
+  const setActiveFarm = useFarmStore((s) => s.setActiveFarm)
   const [serverError, setServerError] = useState('')
   const [needsConfirmation, setNeedsConfirmation] = useState(false)
+  const [invite, setInvite] = useState(null) // { farmName, role } | { error } | null
+  const [existingEmail, setExistingEmail] = useState(false)
+
+  const pendingCode = localStorage.getItem(PENDING_INVITE_CODE_KEY)
+
+  useEffect(() => {
+    if (!pendingCode) return
+    fetchInvitePreview(pendingCode)
+      .then((preview) => setInvite(preview))
+      .catch((err) => {
+        // Invalid/expired code caught right away, before the user fills in
+        // anything — clear it so a normal signup isn't retried against it.
+        localStorage.removeItem(PENDING_INVITE_CODE_KEY)
+        setInvite({ error: err.message })
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
@@ -49,20 +73,54 @@ export default function SignupPage() {
 
   const onSubmit = async ({ full_name, email, password }) => {
     setServerError('')
+    setExistingEmail(false)
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: { data: { full_name } },
     })
     if (error) {
-      setServerError(
-        error.message.includes('already registered')
-          ? 'Este correo ya está registrado. ¿Quieres iniciar sesión?'
-          : error.message
-      )
+      if (error.message.includes('already registered')) {
+        setExistingEmail(true)
+        setServerError(
+          invite && !invite.error
+            ? `Ya existe una cuenta con este correo. Inicia sesión para unirte a ${invite.farmName}, o usa un correo distinto si quieres una cuenta separada.`
+            : 'Ya existe una cuenta con este correo. Inicia sesión, o usa un correo distinto si quieres una cuenta separada.'
+        )
+      } else {
+        setServerError(error.message)
+      }
       return
     }
+
+    const codeToRedeem = invite && !invite.error ? pendingCode : null
+
+    // No session yet means email confirmation is required — the code stays
+    // stashed and gets redeemed by LoginPage right after the user confirms
+    // and logs in, so there's still no separate /unirse click.
     if (!data.session) { setNeedsConfirmation(true); return }
-    navigate(localStorage.getItem(PENDING_INVITE_CODE_KEY) ? '/unirse' : '/onboarding')
+
+    if (codeToRedeem) {
+      try {
+        const { data: result, error: redeemError } = await supabase.rpc('redeem_farm_invitation', { p_code: codeToRedeem })
+        if (redeemError) throw redeemError
+        localStorage.removeItem(PENDING_INVITE_CODE_KEY)
+        const { data: farmRow } = await supabase.from('farms').select('*').eq('id', result.farm_id).single()
+        const farm = { ...farmRow, role: result.role }
+        await db.accounts.put({ id: result.account_id, sync_status: 'synced' })
+        await db.farms.put({ ...farmRow, sync_status: 'synced' })
+        setFarms([farm])
+        setActiveFarm(farm)
+        toast.success(`Cuenta creada — te uniste a ${farm.name} ✓`)
+        navigate('/')
+        return
+      } catch (err) {
+        toast.error(err.message ?? 'La cuenta se creó, pero no se pudo canjear el código de invitación')
+        navigate('/onboarding')
+        return
+      }
+    }
+
+    navigate('/onboarding')
   }
 
   if (needsConfirmation) {
@@ -74,10 +132,25 @@ export default function SignupPage() {
           </div>
           <h2 className="text-xl font-bold text-foreground">Revisa tu correo</h2>
           <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-            Te enviamos un enlace de confirmación. Una vez verificado podrás iniciar sesión.
+            Te enviamos un enlace de confirmación. Una vez verificado podrás iniciar sesión
+            {invite && !invite.error ? ` y quedarás unido a ${invite.farmName} automáticamente.` : '.'}
           </p>
           <Link to="/login" className="block mt-6">
             <Button variant="outline" className="w-full">Ir a iniciar sesión</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (invite?.error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-emerald-100 flex flex-col items-center justify-center p-6">
+        <div className="bg-card rounded-2xl shadow-lg p-8 w-full max-w-sm text-center">
+          <h2 className="text-xl font-bold text-foreground">Código de invitación no válido</h2>
+          <p className="text-muted-foreground text-sm mt-2 leading-relaxed">{invite.error}</p>
+          <Link to="/registro" className="block mt-6">
+            <Button variant="outline" className="w-full">Continuar sin código</Button>
           </Link>
         </div>
       </div>
@@ -95,6 +168,12 @@ export default function SignupPage() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Es gratis para empezar</p>
         </div>
+
+        {invite && !invite.error && (
+          <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 text-center mb-4">
+            Te están invitando a unirte a <strong>{invite.farmName}</strong> como <strong>{ROLE_LABELS[invite.role]}</strong>
+          </div>
+        )}
 
         <div className="bg-card rounded-2xl shadow-lg p-6">
           <h2 className="text-lg font-semibold text-foreground mb-5">Crear cuenta</h2>
@@ -116,7 +195,7 @@ export default function SignupPage() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">Contraseña</label>
-              <input type="password" placeholder="Mínimo 8 caracteres" autoComplete="new-password"
+              <PasswordInput placeholder="Mínimo 8 caracteres" autoComplete="new-password"
                 className={fieldCls(!!errors.password)} {...register('password')} />
               <ul className="flex flex-col gap-1 mt-1">
                 {PWD_RULES.map(({ label, test }) => {
@@ -134,14 +213,19 @@ export default function SignupPage() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">Confirmar contraseña</label>
-              <input type="password" placeholder="••••••••" autoComplete="new-password"
+              <PasswordInput placeholder="••••••••" autoComplete="new-password"
                 className={fieldCls(!!errors.confirm_password)} {...register('confirm_password')} />
               {errors.confirm_password && <span className="text-xs text-destructive">{errors.confirm_password.message}</span>}
             </div>
 
             {serverError && (
-              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 text-center">
-                {serverError}
+              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 text-center flex flex-col gap-2">
+                <span>{serverError}</span>
+                {existingEmail && (
+                  <Link to="/login" className="text-brand-green font-semibold hover:underline">
+                    Iniciar sesión
+                  </Link>
+                )}
               </div>
             )}
 

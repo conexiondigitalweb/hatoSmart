@@ -88,6 +88,32 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 13 — Completada (13 jul 2026)
+
+**Fusión signup + join en un solo paso, detección de correo existente, y toggle mostrar/ocultar contraseña**
+
+- **`027_invitation_preview.sql`**: nueva RPC `get_invitation_preview(p_code)`, de solo lectura y sin requerir sesión (`grant execute ... to anon, authenticated`) — necesaria porque un invitado nuevo todavía no tiene cuenta cuando abre el link, así que no se puede usar `redeem_farm_invitation` (que exige `auth.uid()`) para mostrarle el contexto de la invitación de antemano. Valida existencia/uso/expiración igual que `redeem_farm_invitation` y devuelve `farm_name`+`role`
+- **Flujo nuevo**: `JoinFarmPageGuard` (`App.jsx`) ahora manda al usuario sin sesión a `/registro` (antes `/login`) guardando el código en `localStorage` igual que antes. `SignupPage`/`LoginPage` llaman `fetchInvitePreview()` (`src/lib/inviteCode.js`) al montar si hay código pendiente:
+  - Código inválido/expirado → pantalla de error inmediata, **antes** de mostrar el formulario (verificado en navegador: error visible sin haber tocado ningún campo)
+  - Código válido → banner "Te están invitando a unirte a **{finca}** como **{rol}**" arriba del formulario normal
+  - Al enviar el formulario de registro: `supabase.auth.signUp()` y, si ya hay sesión (confirmación de email desactivada), `redeem_farm_invitation` se llama en el mismo flujo — el usuario termina dentro de la finca sin ningún clic ni pantalla adicional. Si el proyecto tiene confirmación de email activada (`data.session` viene null), el código sigue guardado en `localStorage` y es `LoginPage` quien lo canjea justo después de que el usuario confirme y inicie sesión — sigue sin haber un paso de "unirse" separado
+- **Correo ya existente**: `SignupPage` ya detectaba `already registered` (existente desde antes) — se amplió el mensaje para mencionar la finca de la invitación si aplica, y se agregó un link "Iniciar sesión" visible junto al error (antes solo texto). El código pendiente no se borra en este caso, así que al iniciar sesión desde ese link, `LoginPage` lo detecta y hace el mismo canje automático — es el mismo mecanismo que ya existía para "Unirme a otra finca" desde `MorePage`, solo que ahora se dispara solo
+- **`JoinFarmPage.jsx`** (uso: usuario ya autenticado, código manual desde "Unirme a otra finca" en `MorePage`, o clic en el link de invitación estando ya logueado): se agregó auto-canje en el segundo caso (código explícito en la URL) para no exigir un clic en "Unirme" sobre un código que el usuario ni siquiera tuvo que escribir; el caso de código manual (sin `?code=` en la URL) conserva el botón, porque ahí sí es una acción deliberada
+- **Toggle mostrar/ocultar contraseña**: `src/components/ui/PasswordInput.jsx` nuevo — input que alterna `type="password"`/`type="text"` con ícono de ojo (`lucide-react`), sin guardar ni loggear el valor en ningún lado. Aplicado en los 4 campos de contraseña existentes en la app (Login, Signup contraseña + confirmar contraseña) — no existe pantalla de cambio de contraseña todavía, así que no hay más campos que migrar
+- **Verificado en navegador** (dev server, contra Supabase real): toggle de contraseña alterna correctamente el tipo del input y el label del botón; `/unirse?code=XXXXXX` sin sesión redirige a `/registro` con el código guardado en `localStorage`, y como la migración `027` aún no se ha ejecutado en producción, la llamada a `get_invitation_preview` falla — lo cual de hecho confirma el camino de "código inválido": se ve la pantalla de error de inmediato, antes del formulario, y el código se limpia de `localStorage`. **No se pudo probar el camino feliz completo** (código válido → cuenta nueva → unido a la finca sin clics) porque requiere la migración `027` aplicada y un código real generado por un owner — queda pendiente de probar por el usuario una vez ejecutada la migración
+
+**Build**: ✅ 3627 módulos, 0 errores.
+
+#### Pendiente para Sesión 14
+- **CRÍTICO — Ejecutar en Supabase, en orden**: `027_invitation_preview.sql` (y `019`–`026` si aún no corrieron)
+- **CRÍTICO — Probar de verdad el flujo fusionado** una vez aplicada la migración: abrir un link de invitación real sin sesión → banner de contexto correcto → crear cuenta → termina dentro de la finca sin pasos extra; repetir con un correo ya existente → mensaje + link a login → iniciar sesión → mismo resultado
+- **Pantalla Más (MorePage)**: rediseño con shadcn/ui — perfil, configuración de finca, cerrar sesión
+- **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada
+- **Tests Vitest**: rules/reproduction.js, rules/categories.js, rules/weights.js, rules/health.js, rules/animalImport.js y rules/roles.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
+- **"¿Olvidaste tu contraseña?"** en LoginPage sigue siendo un `alert()` stub, sin flujo real de recuperación
+
 ### Sesión 12 — Completada (14 jul 2026)
 
 **Link directo en la invitación por WhatsApp**

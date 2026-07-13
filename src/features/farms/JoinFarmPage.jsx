@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
@@ -15,14 +15,16 @@ export default function JoinFarmPage() {
   // Prefill from ?code= (direct link) or from a code stashed before an
   // unauthenticated user got bounced through login/signup — see
   // JoinFarmPageGuard and the post-auth redirect in LoginPage/SignupPage.
+  const urlCode = searchParams.get('code')
   const [code, setCode] = useState(
-    () => (searchParams.get('code') || localStorage.getItem(PENDING_INVITE_CODE_KEY) || '').toUpperCase()
+    () => (urlCode || localStorage.getItem(PENDING_INVITE_CODE_KEY) || '').toUpperCase()
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const autoSubmitted = useRef(false)
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e?.preventDefault()
     setError('')
     setLoading(true)
     try {
@@ -49,6 +51,18 @@ export default function JoinFarmPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    // Already authenticated and arrived via an explicit ?code= link (e.g.
+    // opened the WhatsApp invite while already logged in) — redeem right
+    // away instead of making them click "Unirme" on a code they didn't
+    // even have to type.
+    if (urlCode && urlCode.trim().length === 6 && !autoSubmitted.current) {
+      autoSubmitted.current = true
+      handleSubmit()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlCode])
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex flex-col items-center justify-center p-6">

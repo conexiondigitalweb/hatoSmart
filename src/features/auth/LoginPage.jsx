@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { useFarmStore } from '../../stores/farmStore'
+import db from '../../lib/db'
 import Button from '../../components/ui/Button'
+import PasswordInput from '../../components/ui/PasswordInput'
 import { cn } from '../../lib/utils'
-import { PENDING_INVITE_CODE_KEY } from '../../lib/inviteCode'
+import { PENDING_INVITE_CODE_KEY, fetchInvitePreview } from '../../lib/inviteCode'
+import { ROLE_LABELS } from '../../lib/rules/roles'
 
 const schema = z.object({
   email:    z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
@@ -21,11 +25,41 @@ const fieldCls = (hasError) =>
     hasError ? 'border-destructive' : 'border-border'
   )
 
+// Redeems a stashed invite code after successful auth (signup or login),
+// so joining a farm never needs a separate /unirse confirmation click.
+// "Ya eres miembro" is treated as success (idempotent — the code may have
+// already been redeemed in a previous attempt).
+async function redeemPendingInvite(code) {
+  const { data, error } = await supabase.rpc('redeem_farm_invitation', { p_code: code })
+  if (error && !error.message?.includes('Ya eres miembro')) throw error
+  if (data) return data
+  // "Ya eres miembro" path: find the farm_id from the invitation preview
+  // is not available anymore (code may be marked used) — fall back to
+  // reloading the user's memberships, handled by the caller.
+  return null
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const setFarms = useFarmStore((s) => s.setFarms)
   const setActiveFarm = useFarmStore((s) => s.setActiveFarm)
   const [serverError, setServerError] = useState('')
+  const [invite, setInvite] = useState(null) // { farmName, role } | { error } | null
+
+  const pendingCode = localStorage.getItem(PENDING_INVITE_CODE_KEY)
+
+  useEffect(() => {
+    if (!pendingCode) return
+    fetchInvitePreview(pendingCode)
+      .then((preview) => setInvite(preview))
+      .catch((err) => {
+        // Invalid/expired code — don't block a normal login over it, just
+        // stop suggesting it and clear it so it isn't retried after auth.
+        localStorage.removeItem(PENDING_INVITE_CODE_KEY)
+        setInvite({ error: err.message })
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
@@ -45,6 +79,30 @@ export default function LoginPage() {
       return
     }
 
+    const codeToRedeem = invite && !invite.error ? pendingCode : null
+
+    if (codeToRedeem) {
+      try {
+        const result = await redeemPendingInvite(codeToRedeem)
+        localStorage.removeItem(PENDING_INVITE_CODE_KEY)
+        if (result?.farm_id) {
+          const { data: farmRow } = await supabase.from('farms').select('*').eq('id', result.farm_id).single()
+          if (farmRow) {
+            const farm = { ...farmRow, role: result.role }
+            await db.accounts.put({ id: result.account_id, sync_status: 'synced' })
+            await db.farms.put({ ...farmRow, sync_status: 'synced' })
+            setFarms([farm])
+            setActiveFarm(farm)
+            toast.success(`Te uniste a ${farm.name} ✓`)
+            navigate('/')
+            return
+          }
+        }
+      } catch (err) {
+        toast.error(err.message ?? 'No se pudo canjear el código de invitación')
+      }
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     const { data: memberships } = await supabase
       .from('memberships')
@@ -54,11 +112,7 @@ export default function LoginPage() {
     const farms = (memberships ?? []).map((m) => ({ ...m.farms, role: m.role }))
     setFarms(farms)
 
-    // A pending invite code (from a /unirse?code= link that bounced through
-    // login) takes priority over the normal onboarding/home routing.
-    if (localStorage.getItem(PENDING_INVITE_CODE_KEY)) {
-      navigate('/unirse')
-    } else if (farms.length === 0) {
+    if (farms.length === 0) {
       navigate('/onboarding')
     } else if (farms.length === 1) {
       setActiveFarm(farms[0])
@@ -80,6 +134,12 @@ export default function LoginPage() {
           <p className="text-muted-foreground text-sm mt-1">Gestión ganadera inteligente</p>
         </div>
 
+        {invite && !invite.error && (
+          <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 text-center mb-4">
+            Inicia sesión para unirte a <strong>{invite.farmName}</strong> como <strong>{ROLE_LABELS[invite.role]}</strong>
+          </div>
+        )}
+
         {/* Card */}
         <div className="bg-card rounded-2xl shadow-lg p-6">
           <h2 className="text-lg font-semibold text-foreground mb-5">Iniciar sesión</h2>
@@ -99,8 +159,7 @@ export default function LoginPage() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">Contraseña</label>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="••••••••"
                 autoComplete="current-password"
                 className={fieldCls(!!errors.password)}
