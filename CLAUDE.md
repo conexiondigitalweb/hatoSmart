@@ -87,6 +87,17 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 12 — Completada (14 jul 2026)
+
+**Link directo en la invitación por WhatsApp**
+- El mensaje generado por `ManageUsersPage` solo incluía el PIN en texto plano, obligando al invitado a transcribirlo a mano en `/unirse`
+- `whatsappLink()` ahora arma la URL con `${window.location.origin}/unirse?code=${code}` (no se hardcodeó un dominio — la URL real de producción es `https://hato-smart.vercel.app`, no `www.hatosmart.com` como se sugirió en el pedido; usar `window.location.origin` evita hardcodear cualquier dominio y funciona igual en local/producción/un futuro dominio propio)
+- `JoinFarmPage.jsx` ahora lee `?code=` de la URL (`useSearchParams`) y pre-llena el input — el invitado solo confirma con "Unirme" en vez de escribir el código
+- **Caso no trivial que sí se resolvió**: si quien abre el link no tiene sesión, `/unirse` lo manda a `/login` (o se registra), y ese salto perdía el query param. Se agregó `src/lib/inviteCode.js` (constante `PENDING_INVITE_CODE_KEY`) para guardar el código en `localStorage` justo antes de redirigir a login (`JoinFarmPageGuard` en `App.jsx`), y `LoginPage`/`SignupPage` ahora revisan ese valor después de autenticar exitosamente y mandan a `/unirse` en vez del flujo normal de onboarding/home. `JoinFarmPage` limpia la clave de `localStorage` al canjear el código con éxito
+- Verificado en navegador: código en la URL sin sesión → redirige a `/login` y el código queda guardado en `localStorage`; con el guard bypaseado temporalmente (solo para la prueba, revertido después) → el input llega prellenado con el código de la URL (con prioridad sobre el que hubiera en `localStorage`) y el botón "Unirme" queda habilitado sin que el usuario escriba nada
+
+**Build**: ✅ 3625 módulos, 0 errores.
+
 ### Sesión 11 — Completada (14 jul 2026)
 
 **Fix — "permission denied for table farm_invitations" en ManageUsersPage**

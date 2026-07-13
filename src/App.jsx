@@ -1,6 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { useSessionStore } from './stores/sessionStore'
+import { PENDING_INVITE_CODE_KEY } from './lib/inviteCode'
 import AppLayout from './components/shared/AppLayout'
 import PrivateRoute from './components/shared/PrivateRoute'
 import RequireRole from './components/shared/RequireRole'
@@ -98,7 +99,14 @@ function FarmSelectorGuard() {
 function JoinFarmPageGuard() {
   const user = useSessionStore((s) => s.user)
   const loading = useSessionStore((s) => s.loading)
+  const [searchParams] = useSearchParams()
   if (loading) return null
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) {
+    // Stash the code so it survives the login/signup detour — the ?code=
+    // query param would otherwise be lost once we redirect away from here.
+    const code = searchParams.get('code')
+    if (code) localStorage.setItem(PENDING_INVITE_CODE_KEY, code)
+    return <Navigate to="/login" replace />
+  }
   return <JoinFarmPage />
 }

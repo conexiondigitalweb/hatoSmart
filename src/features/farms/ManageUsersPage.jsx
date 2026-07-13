@@ -127,7 +127,8 @@ export default function ManageUsersPage() {
 
   const whatsappLink = (code) => {
     const roleLabel = ROLE_LABELS[invitations?.find((i) => i.code === code)?.role] ?? ''
-    const text = `Te invito a unirte a ${activeFarm?.name} en HatoSmart. Tu código de invitación (${roleLabel}) es: ${code}\n\nÚsalo en la app en "Unirme a otra finca". Válido por 48 horas.`
+    const joinUrl = `${window.location.origin}/unirse?code=${code}`
+    const text = `Te invito a unirte a ${activeFarm?.name} en HatoSmart. Tu código de invitación (${roleLabel}) es: ${code}\n\nÚnete directo desde este link: ${joinUrl}\n\nVálido por 48 horas.`
     return `https://wa.me/?text=${encodeURIComponent(text)}`
   }
 

@@ -7,6 +7,7 @@ import { Check, X, Mail } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
 import { cn } from '../../lib/utils'
+import { PENDING_INVITE_CODE_KEY } from '../../lib/inviteCode'
 
 const schema = z.object({
   full_name: z.string().min(1, 'Ingresa tu nombre').min(2, 'Mínimo 2 caracteres'),
@@ -61,7 +62,7 @@ export default function SignupPage() {
       return
     }
     if (!data.session) { setNeedsConfirmation(true); return }
-    navigate('/onboarding')
+    navigate(localStorage.getItem(PENDING_INVITE_CODE_KEY) ? '/unirse' : '/onboarding')
   }
 
   if (needsConfirmation) {

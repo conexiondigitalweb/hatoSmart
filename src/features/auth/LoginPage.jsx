@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { useFarmStore } from '../../stores/farmStore'
 import Button from '../../components/ui/Button'
 import { cn } from '../../lib/utils'
+import { PENDING_INVITE_CODE_KEY } from '../../lib/inviteCode'
 
 const schema = z.object({
   email:    z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
@@ -53,7 +54,11 @@ export default function LoginPage() {
     const farms = (memberships ?? []).map((m) => ({ ...m.farms, role: m.role }))
     setFarms(farms)
 
-    if (farms.length === 0) {
+    // A pending invite code (from a /unirse?code= link that bounced through
+    // login) takes priority over the normal onboarding/home routing.
+    if (localStorage.getItem(PENDING_INVITE_CODE_KEY)) {
+      navigate('/unirse')
+    } else if (farms.length === 0) {
       navigate('/onboarding')
     } else if (farms.length === 1) {
       setActiveFarm(farms[0])

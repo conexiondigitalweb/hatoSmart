@@ -1,16 +1,23 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { useFarmStore } from '../../stores/farmStore'
 import db from '../../lib/db'
 import Button from '../../components/ui/Button'
+import { PENDING_INVITE_CODE_KEY } from '../../lib/inviteCode'
 
 export default function JoinFarmPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const addFarm = useFarmStore((s) => s.addFarm)
   const setActiveFarm = useFarmStore((s) => s.setActiveFarm)
-  const [code, setCode] = useState('')
+  // Prefill from ?code= (direct link) or from a code stashed before an
+  // unauthenticated user got bounced through login/signup — see
+  // JoinFarmPageGuard and the post-auth redirect in LoginPage/SignupPage.
+  const [code, setCode] = useState(
+    () => (searchParams.get('code') || localStorage.getItem(PENDING_INVITE_CODE_KEY) || '').toUpperCase()
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -33,6 +40,7 @@ export default function JoinFarmPage() {
 
       addFarm(farm)
       setActiveFarm(farm)
+      localStorage.removeItem(PENDING_INVITE_CODE_KEY)
       toast.success(`Te uniste a ${farm.name} ✓`)
       navigate('/')
     } catch (err) {
