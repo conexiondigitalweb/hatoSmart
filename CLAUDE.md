@@ -87,6 +87,38 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 8 — Completada (12 jul 2026)
+
+**Fix crítico — pantalla en blanco en "Agregar animal"**
+- Causa raíz: `AnimalFormPage.jsx` referenciaba una variable `labelCls` nunca definida (solo existían `inputCls`/`selectCls`) en el label del campo de foto — `ReferenceError` en cada render desde que el archivo se creó (confirmado con `git blame`, no era una regresión de Pesajes/Sanidad). Sin Error Boundary, React desmontaba todo el árbol → pantalla en blanco total, igual en PWA instalada y navegador
+- Fix: se reemplazó el label suelto por el componente `Field` que ya usan todos los demás campos del formulario
+- Se agregó `src/components/shared/ErrorBoundary.jsx` (montado en `main.jsx` envolviendo toda la app) para que un futuro crash de render muestre "Algo salió mal" + botón "Recargar" en vez de pantalla en blanco
+- Verificado end-to-end: formulario renderiza, se llena, se guarda y el animal aparece en la lista; el Error Boundary se probó forzando un crash real
+
+**Importación masiva de animales (`ImportAnimalsPage.jsx`, `/animales/importar`)**
+- Filosofía: fricción mínima — solo `tag_number` (Arete) y `sex` (Sexo) son obligatorios para importar una fila (los únicos `not null`/requeridos en el flujo manual de `AnimalFormPage`); todo lo demás se guarda si viene en el archivo y se puede completar después desde la ficha del animal
+- Librería: se agregó `xlsx` (SheetJS) — **instalada desde el CDN oficial de SheetJS** (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`), no desde el registro de npm, porque la versión publicada ahí (0.18.5) tiene vulnerabilidades conocidas (prototype pollution + ReDoS) que SheetJS ya parchó en su propio CDN pero nunca republicó a npm
+- `src/lib/rules/animalImport.js` (puro, sin tocar xlsx ni el DOM): catálogo `SYSTEM_FIELDS` con alias por columna para mapeo automático por similitud de nombre (ej. "ID"/"Numero"/"Caravana" → Arete), parsers tolerantes de sexo/fecha/categoría/origen, y `parseAndValidateRow()` que separa errores bloqueantes (solo arete/sexo) de advertencias no bloqueantes (todo lo demás). Reutiliza `suggestCategory()` de `rules/categories.js` cuando la categoría no viene en el archivo
+- `src/lib/animalImportFile.js`: genera la plantilla descargable (hoja "Animales" + hoja "Instrucciones" con las obligatorias marcadas con `*`, mismo lenguaje que ya usa `AnimalFormPage`) y parsea el archivo subido (`.xlsx`/`.csv`) a filas crudas, sin asumir orden ni nombres de columna
+- Flujo de 4 pasos en una sola página: subir archivo → mapeo de columnas (editable, con badge de columnas no reconocidas) → grilla editable con resumen "X listos / Y bloqueados" → resultado final con conteo de éxito/pendientes y botón "Corregir y reintentar" que vuelve a la grilla con solo las filas que fallaron
+- **Madre por arete**: si la columna "Madre (arete)" trae un valor, se resuelve a `mother_id` cruzando contra animales ya existentes en la finca *y* contra otras filas del mismo lote que se están importando ahora (permite referenciar a la madre aunque se suba en el mismo archivo)
+- **Manejo de errores por fila**: cada escritura a Dexie se intenta individualmente dentro de un try/catch — si una fila falla, no tumba la importación de las demás; los motivos (bloqueo de validación o error de escritura) se listan en la pantalla de resultado
+- Alcance respetado: no se construyó detección de arete duplicado contra animales existentes (pedido explícitamente fuera de alcance para esta sesión)
+- Code-splitting: `ImportAnimalsPage` se carga con `React.lazy`/`Suspense` porque `xlsx` agrega ~500kB al bundle — así el resto de la app (incluida la instalación inicial de la PWA) no paga ese costo
+
+**Probado con un Excel de ejemplo real** (encabezados informales, no la plantilla oficial: "ID", "Sexo", "Nombre", "Raza", "Fecha Nac", "Madre", "Observaciones"): mapeo automático correcto de las 7 columnas, fila con solo arete+sexo importó igual, fila sin sexo y fila sin arete quedaron bloqueadas con su motivo sin afectar las demás, madre resuelta correctamente contra una fila hermana del mismo archivo, categoría autosugerida desde sexo+fecha de nacimiento. Verificado directamente contra IndexedDB en el navegador, no solo la UI.
+
+**Build**: ✅ 3622 módulos, 0 errores.
+
+#### Pendiente para Sesión 9
+- **CRÍTICO — Verificar en Supabase**: confirmar que `019_fix_rls_all_tables.sql` se ejecutó, y ejecutar `020_weighings_method.sql`, `021_health_protocols.sql`, `022_health_events_extend.sql`
+- **Pantalla Más (MorePage)**: rediseño con shadcn/ui — perfil, configuración de finca, cerrar sesión
+- **Alertas de celo automáticas**: generar `possible_heat` cada 21 días tras último celo/servicio sin preñez confirmada (lógica en rules/reproduction.js o Supabase Edge Function)
+- **Tests Vitest**: rules/reproduction.js, rules/categories.js, rules/weights.js, rules/health.js y rules/animalImport.js
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales**: si se quiere exponer UI para tratar el hato completo de una vez, definir cómo `AnimalDetailPage` debe reflejar eventos sin `animal_id` (vía `health_event_animals`)
+- **Detección de arete duplicado en importación masiva**: contra animales ya existentes en la finca (explícitamente descartado en Sesión 8)
+
 ### Sesión 7 — Completada (11 jul 2026)
 
 **Módulo Pesajes**

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { differenceInMonths, differenceInYears } from 'date-fns'
-import { Search, Plus, ChevronRight } from 'lucide-react'
+import { Search, Plus, ChevronRight, Upload } from 'lucide-react'
 import { useFarmStore } from '../../stores/farmStore'
 import db from '../../lib/db'
 import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/Avatar'
@@ -82,6 +82,14 @@ export default function AnimalListPage() {
           <h1 className="text-xl font-bold text-foreground">
             Animales{animals?.length ? ` (${animals.length})` : ''}
           </h1>
+          <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/animales/importar')}
+            className="flex items-center gap-1 bg-muted text-foreground text-sm font-semibold h-9 px-3 rounded-xl active:scale-95 transition-transform"
+          >
+            <Upload className="w-4 h-4" strokeWidth={2.5} />
+            Importar
+          </button>
           <button
             onClick={() => navigate('/animales/nuevo')}
             className="flex items-center gap-1 bg-brand-green text-white text-sm font-semibold h-9 px-3 rounded-xl active:scale-95 transition-transform"
@@ -89,6 +97,7 @@ export default function AnimalListPage() {
             <Plus className="w-4 h-4" strokeWidth={2.5} />
             Nuevo
           </button>
+          </div>
         </div>
 
         {/* Search */}

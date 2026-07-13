@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSessionStore } from './stores/sessionStore'
 import AppLayout from './components/shared/AppLayout'
@@ -22,6 +22,9 @@ import ProtocolsPage from './features/health/ProtocolsPage'
 import AlertsPage from './features/alerts/AlertsPage'
 import MorePage from './features/more/MorePage'
 
+// Lazy: pulls in the xlsx library (~500kB) only when the import screen is visited
+const ImportAnimalsPage = lazy(() => import('./features/animals/ImportAnimalsPage'))
+
 export default function App() {
   const init = useSessionStore((s) => s.init)
 
@@ -43,6 +46,11 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/animales" element={<AnimalListPage />} />
           <Route path="/animales/nuevo" element={<AnimalFormPage />} />
+          <Route path="/animales/importar" element={
+            <Suspense fallback={<div className="p-4 text-center text-sm text-muted-foreground mt-8">Cargando...</div>}>
+              <ImportAnimalsPage />
+            </Suspense>
+          } />
           <Route path="/animales/:id" element={<AnimalDetailPage />} />
           <Route path="/animales/:id/editar" element={<AnimalFormPage />} />
           <Route path="/ordeño" element={<MilkFormPage />} />
