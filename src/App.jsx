@@ -7,6 +7,8 @@ import PrivateRoute from './components/shared/PrivateRoute'
 import RequireRole from './components/shared/RequireRole'
 import LoginPage from './features/auth/LoginPage'
 import SignupPage from './features/auth/SignupPage'
+import ForgotPasswordPage from './features/auth/ForgotPasswordPage'
+import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import OnboardingWizard from './features/farms/OnboardingWizard'
 import FarmSelector from './features/farms/FarmSelector'
 import JoinFarmPage from './features/farms/JoinFarmPage'
@@ -41,6 +43,8 @@ export default function App() {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<SignupPage />} />
+      <Route path="/olvide-contrasena" element={<ForgotPasswordPage />} />
+      <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
 
       {/* Auth required, no farm needed */}
       <Route path="/onboarding" element={<OnboardingWizardGuard />} />

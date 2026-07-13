@@ -179,13 +179,12 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <button
-            type="button"
-            onClick={() => alert('Funcionalidad próximamente')}
-            className="text-center text-muted-foreground text-sm w-full mt-4 hover:text-brand-green transition-colors"
+          <Link
+            to="/olvide-contrasena"
+            className="block text-center text-muted-foreground text-sm w-full mt-4 hover:text-brand-green transition-colors"
           >
             ¿Olvidaste tu contraseña?
-          </button>
+          </Link>
         </div>
 
         <p className="text-center text-muted-foreground text-sm mt-5">

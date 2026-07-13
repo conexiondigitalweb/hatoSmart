@@ -119,7 +119,34 @@ hatosmart/
 - **Tests Vitest**: sigue pendiente desde hace varias sesiones — rules/reproduction.js (incluyendo el nuevo `calcPossibleHeatDate`, dada su complejidad de casos), rules/categories.js, rules/weights.js, rules/health.js, rules/animalImport.js y rules/roles.js
 - **PWA manifest**: actualizar `theme_color` a `#16a34a`
 - **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
-- **"¿Olvidaste tu contraseña?"** en LoginPage sigue siendo un `alert()` stub, sin flujo real de recuperación
+
+### Sesión 16 — Completada (13 jul 2026)
+
+**"Recordar contraseña" — flujo funcional + templates de correo con marca**
+
+- **`ForgotPasswordPage.jsx`** (`/olvide-contrasena`, pública): pide el correo, llama `supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/restablecer-contrasena` } )` — mismo patrón sin dominio hardcodeado que ya usa el link de invitación por WhatsApp. Muestra un mensaje genérico ("Si el correo existe...") sin importar si Supabase devolvió éxito o no, porque Supabase mismo no distingue "correo no existe" con un error — solo un fallo real (rate limit, red) llega al branch de error, así que mostrarlo no filtra si la cuenta existe
+- **`ResetPasswordPage.jsx`** (`/restablecer-contrasena`, pública): no reprocesa el link a mano — `detectSessionInUrl: true` ya está activo en `src/lib/supabase.js`, así que para cuando este componente monta, el token de recuperación de la URL ya se canjeó por una sesión real, y `sessionStore` (que hace `getSession()`/`onAuthStateChange` en `App.jsx` desde antes) ya la refleja. La página solo lee `useSessionStore.user`: sin sesión → pantalla "Enlace no válido o expirado" con link para pedir uno nuevo; con sesión → formulario de nueva contraseña (`PasswordInput.jsx`, mismo toggle de la Sesión 13). Al guardar: `supabase.auth.updateUser({ password })`, luego `signOut()` explícito (la sesión de recovery deja al usuario técnicamente logueado; se cierra a propósito para que vuelva a entrar a mano con la contraseña nueva, tal como se pidió) y redirige a `/login` con confirmación
+- **`LoginPage.jsx`**: "¿Olvidaste tu contraseña?" deja de ser el `alert()` stub — ahora es un `Link` real a `/olvide-contrasena`
+- **`email-templates/`** (carpeta nueva, sin conexión al código — se pegan a mano en Supabase): `recovery.html` y `confirmation.html`, HTML "a prueba de balas" (tablas, estilos inline, sin flexbox/grid, fuente del sistema), verde de marca `#16a34a`, logo referenciado por URL absoluta al dominio oficial (`https://www.hatosmart.com/apple-touch-icon.png`). Ambos usan `{{ .ConfirmationURL }}` — la única variable que hace falta para un link de un clic, verificada contra la sintaxis real de Supabase (no se inventó). No se armó plantilla de invitación a finca porque ese flujo es un sistema propio de PIN + WhatsApp (`ManageUsersPage.jsx`), no pasa por el correo de Auth de Supabase. `README.md` en la misma carpeta documenta qué archivo va en qué sección exacta de Supabase (Authentication → Email Templates → Reset Password / Confirm signup), el asunto sugerido, y el recordatorio de agregar `https://www.hatosmart.com/restablecer-contrasena` a la lista de Redirect URLs permitidos antes de que el link funcione en producción
+
+**Verificado en navegador** (dev server, contra Supabase real):
+- `/olvide-contrasena`: formulario envía `resetPasswordForEmail` con un correo de prueba inexistente (`hatosmart-verify-nonexistent-test@example.com`, elegido a propósito para no disparar un correo real a ninguna cuenta existente) → sin error, pantalla de confirmación genérica visible, confirmando que Supabase no revela existencia de cuenta
+- `/restablecer-contrasena` sin sesión: pantalla "Enlace no válido o expirado" correcta (comportamiento real, no mockeado)
+- `/restablecer-contrasena` con sesión (mockeada en `sessionStore` solo para ver el formulario): el formulario de nueva contraseña renderiza correctamente con los dos campos y su toggle
+- **No se pudo probar el envío real de correo ni el intercambio real del token de recovery**: este entorno no tiene acceso a una bandeja de entrada real, y el harness de seguridad del sandbox bloqueó — correctamente — un intento de enviar el formulario de nueva contraseña usando la sesión mockeada (habría sido una llamada real y no verificable a `supabase.auth.updateUser` con una sesión falsificada). El camino feliz completo (pedir reset → abrir el correo real → llegar con el token real → cambiar contraseña → volver a loguear) queda pendiente de que el usuario lo pruebe con una cuenta real
+
+**Build**: ✅ 3632 módulos, 0 errores.
+
+#### Pendiente para Sesión 17
+- **CRÍTICO — Probar el flujo completo con una cuenta real**: solicitar reset desde `/olvide-contrasena`, abrir el enlace del correo real, confirmar que `/restablecer-contrasena` reconoce la sesión de recovery, cambiar la contraseña, y volver a loguear con la nueva
+- **CRÍTICO — Antes de que el link funcione en producción**: agregar `https://www.hatosmart.com/restablecer-contrasena` a Authentication → URL Configuration → Redirect URLs en Supabase (si no está ya) — sin esto Supabase rechaza el `redirectTo`
+- **Pegar los templates de `email-templates/`** en Supabase (Authentication → Email Templates → Reset Password / Confirm signup) — ver `email-templates/README.md`
+- **SMTP personalizado vía Resend**: pendiente de configurar (mencionado como motivación de esta sesión, no implementado — los templates ya están listos para cuando se conecte)
+- **CRÍTICO — Ejecutar en Supabase, en orden**: `030_possible_heat.sql` (y `028`/`029` si aún no corrieron)
+- **Hallazgo de timezone sin corregir** (ver Sesión 15): `rules/reproduction.js`/`rules/health.js` calculan un día antes de lo esperado en timezones detrás de UTC
+- **Tests Vitest**: sigue pendiente desde hace varias sesiones
+- **PWA manifest**: actualizar `theme_color` a `#16a34a`
+- **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
 
 ### Sesión 14 — Completada (13 jul 2026)
 
