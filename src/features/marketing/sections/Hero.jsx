@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Play } from 'lucide-react'
 import Button from '../../../components/ui/Button'
-import ImagePlaceholder from '../ImagePlaceholder'
 
 export default function Hero() {
   return (
@@ -42,16 +41,21 @@ export default function Hero() {
             </p>
           </div>
 
-          <div>
-            {/* {{HERO_IMAGE}} — foto real de finca/ganado colombiano o corral,
-                idealmente con el celular/app en primer plano. Aspect ratio
-                ideal 4:3 o 1:1, mínimo 1200×900px, buena luz natural. */}
-            <ImagePlaceholder
-              token="HERO_IMAGE"
-              hint="Foto de finca/ganado con el celular en primer plano · 4:3 · mín. 1200×900px"
-              dark
-              className="aspect-[4/3] lg:aspect-square"
+          <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
+            <img
+              src="/images/landing/hero-finca.webp"
+              alt="Atardecer sobre los potreros de una finca ganadera colombiana"
+              width={1400}
+              height={1050}
+              className="absolute inset-0 w-full h-full object-cover"
+              fetchpriority="high"
             />
+            {/* Scrim sutil — no hay texto encima de la foto en este layout
+                (va al lado, no superpuesta), es solo para que el borde se
+                funda con el fondo oscuro de la sección en vez de verse
+                como un recorte duro */}
+            <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/40 via-transparent to-transparent" />
+            <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-3xl" />
           </div>
         </div>
       </div>

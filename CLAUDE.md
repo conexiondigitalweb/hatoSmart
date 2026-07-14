@@ -89,6 +89,32 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 19 — Completada (13 jul 2026)
+
+**Reemplazo de placeholders visuales de la landing por assets reales**
+
+- **`public/images/landing/`**: 7 de los 9 placeholders de imagen de la Sesión 18 quedan resueltos — `hero-finca.webp` (foto real de la finca) y los 6 `modulo-*.webp` (ilustraciones estilo polaroid/scrapbook: foto real + cinta + clip + etiqueta con el nombre del módulo, ya integrados en el arte). Quedan pendientes solo `{{TESTIMONIO_1}}`/`{{TESTIMONIO_2}}` (`SocialProof.jsx`) y `{{OG_IMAGE}}` (`index.html`), sin cambios — no había assets nuevos para esos dos en esta sesión
+- **Optimización**: los originales que subió el usuario (`hero-finca.jpg` 4160×3120/5.2MB, y 6 PNG de 1080×1350/~2MB cada uno) se procesaron con `sharp` (`scripts/optimize-landing-images.mjs`, instalado con `npm install --no-save sharp` — **no** quedó en `package.json`/`package-lock.json`, es una herramienta de una sola vez, no del pipeline de build) → WebP redimensionado al ancho real de despliegue (1400px hero, 800px módulos) con calidad 78-82. Resultado: ~18MB → ~730KB (94-97% menos) sin pérdida visible. Los originales sin optimizar **no se versionan** — se descartaron después de generar los `.webp` (seguían existiendo en `/mnt/user-data/uploads/` como respaldo del usuario en el momento de la sesión)
+- **`Hero.jsx`**: la foto reemplaza el placeholder punteado directo, mismo `aspect-[4/3]` que el original (4160:3120 = 4:3 exacto, cero recorte), `object-cover` + `rounded-3xl` + un scrim sutil solo por cohesión de marca (no hay texto superpuesto a la foto en este layout de 2 columnas, así que no era estrictamente necesario para legibilidad). `fetchpriority="high"` (es el elemento above-the-fold / LCP candidato) — a propósito **sin** `loading="lazy"`, que habría sido contraproducente aquí
+- **`SolutionSection.jsx`** rediseñada alrededor del arte real en vez de mantener el contenedor de tarjeta blanca genérica de antes: como los PNG ya traen el marco de polaroid + cinta + clip + etiqueta con transparencia (`hasAlpha: true`, confirmado antes de decidir el layout), envolverlos en otra tarjeta blanca se habría visto como doble marco — ahora la imagen flota directo sobre el fondo de la sección, con `drop-shadow-xl` para la profundidad. Grid `grid-cols-1 lg:grid-cols-3` (1 columna mobile, 3×2 desktop, tal como se pidió — se quitó el paso intermedio `sm:grid-cols-2` que tenía antes). Rotación alternada fija por índice (`-3deg, 2deg, -2deg, 3deg, -2deg, 2deg`, no aleatoria, para que no "tiemble" entre renders) + `hover:rotate-0 hover:scale-105` como el detalle opcional pedido. `loading="lazy"` en las 6 (estas sí están below-the-fold)
+- **`ImagePlaceholder.jsx` eliminado** — quedó sin ningún uso después de resolver Hero y Solution (era el único lugar que lo importaba además de sí mismo); `SocialProof.jsx` nunca lo usó, construye sus tarjetas de placeholder aparte. Se prefirió borrarlo a dejarlo como código muerto
+- **Comentario de mapa de placeholders en `LandingPage.jsx`** actualizado para reflejar solo lo pendiente (testimonios + OG_IMAGE), con nota apuntando a `scripts/optimize-landing-images.mjs` para regenerar los `.webp` si llegan reemplazos más adelante
+
+**Verificado en navegador**: build limpio (0 errores). Confirmé con `read_network_requests` que las 6 imágenes de módulos **no** se piden en la carga inicial (solo `hero-finca.webp`) y sí aparecen (`complete: true`, `naturalWidth: 800`) después de hacer scroll hasta esa sección — lazy loading funcionando de verdad, no solo el atributo puesto. Capturas de pantalla en desktop (1280px) y mobile (375px): sin overflow horizontal en ningún ancho, sin distorsión de aspect ratio (hero exacto 4:3 sin recorte; módulos con su 4:5 nativo vía `object-contain` implícito del `<img>` sin forzar crop), rotación alternada visible y con look "pegado en la pared", nada se sale del viewport pese a la rotación
+
+**Build**: ✅ 3644 módulos, 0 errores.
+
+#### Pendiente para Sesión 20
+- **`{{TESTIMONIO_1}}`/`{{TESTIMONIO_2}}`** (`SocialProof.jsx`) y **`{{OG_IMAGE}}`** (`index.html`) — únicos placeholders visuales que quedan
+- **Contenido legal real** de `/terminos` y `/privacidad` (hoy son "Próximamente")
+- **Definir precios finales de negocio**: los valores actuales ($39.900/$79.900 y los descuentos por período) siguen sin confirmar como definitivos
+- **`hola@hatosmart.com`** en el footer sigue siendo placeholder de contacto sin confirmar
+- **Redes sociales**: footer sigue sin Instagram/Facebook (sin cuentas reales confirmadas)
+- **CRÍTICO — Ejecutar en Supabase, en orden**: `030_possible_heat.sql` (y `028`/`029` si aún no corrieron)
+- **CRÍTICO — Probar el flujo completo de recuperación de contraseña con una cuenta real** (Sesión 16)
+- **Pegar los templates de `email-templates/`** en Supabase (ver `email-templates/README.md`)
+- **Tests Vitest**: sigue pendiente desde hace varias sesiones
+
 ### Sesión 18 — Completada (13 jul 2026)
 
 **Landing pública en "/" — visible antes de cualquier login**

@@ -4,23 +4,15 @@
 // desde el catch-all de App.jsx, así que cualquier ruta rota para un
 // visitante sin sesión termina aquí en vez de en un 404.
 //
-// ── Mapa de placeholders visuales (reemplazar cuando haya assets reales) ──
-// Cada uno se ve en pantalla como el texto literal {{TOKEN}} dentro de un
-// recuadro punteado (componente ImagePlaceholder.jsx), no solo en un
-// comentario de código — así es imposible perderlo al revisar la página.
+// ── Mapa de placeholders visuales ──────────────────────────────────────────
+// Resueltos con assets reales (Sesión 19): {{HERO_IMAGE}} (sections/Hero.jsx
+// → public/images/landing/hero-finca.webp) y los 6 {{ILLUSTRATION_MODULO_X}}
+// (sections/SolutionSection.jsx → public/images/landing/modulo-*.webp).
+// Originales sin optimizar NO se versionan — ver scripts/optimize-landing-images.mjs
+// para regenerar los .webp si algún día llegan reemplazos.
 //
-//   {{HERO_IMAGE}}                      → sections/Hero.jsx
-//     Foto real de finca/ganado colombiano, celular en primer plano si se
-//     puede. Aspect ratio 4:3 (1:1 en desktop), mínimo 1200×900px.
-//
-//   {{ILLUSTRATION_MODULO_ANIMALES}}     → sections/SolutionSection.jsx
-//   {{ILLUSTRATION_MODULO_ORDENO}}       → sections/SolutionSection.jsx
-//   {{ILLUSTRATION_MODULO_PESAJES}}      → sections/SolutionSection.jsx
-//   {{ILLUSTRATION_MODULO_SANIDAD}}      → sections/SolutionSection.jsx
-//   {{ILLUSTRATION_MODULO_REPRODUCCION}} → sections/SolutionSection.jsx
-//   {{ILLUSTRATION_MODULO_ALERTAS}}      → sections/SolutionSection.jsx
-//     Ilustraciones de Canva, una por módulo, aspect ratio 4:3, mismo
-//     estilo/paleta entre las 6 para que se vean como un set.
+// Todavía pendientes (se ven en pantalla como el texto literal {{TOKEN}}
+// dentro de una tarjeta con borde punteado, no solo en este comentario):
 //
 //   {{TESTIMONIO_1}}, {{TESTIMONIO_2}}   → sections/SocialProof.jsx
 //     No son imágenes — son tarjetas de texto completas (nombre, finca,
