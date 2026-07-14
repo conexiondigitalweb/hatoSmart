@@ -77,7 +77,8 @@ hatosmart/
         ├── milk/
         ├── weights/
         ├── health/
-        └── dashboard/
+        ├── dashboard/
+        └── marketing/           (landing pública "/" + /terminos /privacidad)
 ```
 
 ## Colores de marca (design system actual)
@@ -88,6 +89,38 @@ hatosmart/
 - (Colores anteriores #3dbf5e / #2b3240 / #f5f5f5 reemplazados completamente en Sesión 5)
 
 ## Estado actual del proyecto
+### Sesión 18 — Completada (13 jul 2026)
+
+**Landing pública en "/" — visible antes de cualquier login**
+
+- **Routing** (`PrivateRoute.jsx`): en vez de crear una rama de rutas pública paralela, se aprovechó que "/" ya vivía dentro del árbol privado (`AppLayout`+`HomePage`) — `PrivateRoute` ahora mira `useLocation().pathname`: si no hay usuario y la ruta es exactamente `/`, renderiza `LandingPage` en vez de redirigir a `/login`; cualquier otra ruta privada sigue redirigiendo a `/login` igual que siempre, y un usuario con sesión nunca entra a esa rama (sigue derecho a su dashboard, sin cambios). Efecto colateral correcto: el catch-all de `App.jsx` (`*` → `/`) ahora manda a un visitante sin sesión con una URL rota a la landing en vez de a un muro de login
+- **`src/features/marketing/`** nueva: `LandingPage.jsx` (compone las secciones + nav propio, con el mapa completo de placeholders documentado en un comentario al inicio del archivo), `sections/` (Hero, ProblemSection, SolutionSection, HowItWorks, PricingSection, SocialProof, FinalCta, LandingFooter), `pricing.js` (datos de planes + cálculo de precio/ahorro, ver abajo), `ImagePlaceholder.jsx` (recuadro punteado reutilizable que muestra el token `{{TOKEN}}` **en la página misma**, no solo en un comentario de código), `TermsPage.jsx`/`PrivacyPage.jsx` (placeholder "Próximamente", contenido legal real pendiente para otra sesión)
+- **Precios con toggle de período**: `pricing.js` calcula, por plan y período (mensual/trimestral/semestral/anual, con -0/-10/-18/-28%), el precio mensual equivalente (redondeado a la decena), el total facturado en ese período, y el ahorro en pesos frente a pagar mes a mes — verificado a mano en navegador que la matemática cuadra exactamente para los 3 planes en los 4 períodos
+- **Bug real encontrado y corregido en `components/ui/Button.jsx`** (no en el código nuevo de la landing): nadie había usado la prop `asChild` de `Button` hasta esta sesión (Radix `Slot`, para que un `<Link>` de React Router se vea y actúe como el botón sin anidar `<button>` dentro de `<a>`). `Slot` exige exactamente un hijo React — pero el JSX de `Button` siempre renderizaba `{loading && (...)} {children}` como dos hijos (el `false` de `loading` cuenta como hijo aunque no pinte nada), y `Slot` tronaba con "Slot failed to slot onto its children". Se corrigió para que, cuando `asChild` es true, se le pase a `Slot` únicamente `children` (sin el wrapper del spinner, que de todas formas no aplica a un link). El comportamiento de los botones normales (`asChild` false, usado en toda la app hasta ahora) queda idéntico
+- **SEO básico** (`index.html`, estático — la app es un SPA sin SSR, así que esto es lo que ve un crawler antes de ejecutar JS): `<title>` y `<meta name="description">` orientados a "software ganadero Colombia", tags Open Graph (`og:title`, `og:description`, `og:type`, `og:locale`, `og:image`) y `twitter:card`. `og:image` apunta a `/apple-touch-icon.png` como placeholder funcional (ver mapa de placeholders abajo)
+
+**Mapa de placeholders de imagen** (documentado también en el comentario inicial de `LandingPage.jsx`; cada uno se ve en pantalla como el texto `{{TOKEN}}` dentro de un recuadro punteado, no solo en el código):
+- `{{HERO_IMAGE}}` (`sections/Hero.jsx`) — foto real de finca/ganado colombiano, celular en primer plano si se puede. 4:3 (1:1 en desktop), mínimo 1200×900px
+- `{{ILLUSTRATION_MODULO_ANIMALES}}`, `_ORDENO`, `_PESAJES`, `_SANIDAD`, `_REPRODUCCION`, `_ALERTAS` (`sections/SolutionSection.jsx`) — ilustraciones de Canva, una por módulo, 4:3, mismo estilo/paleta entre las 6
+- `{{TESTIMONIO_1}}`, `{{TESTIMONIO_2}}` (`sections/SocialProof.jsx`) — no son imágenes, son tarjetas de texto completas (nombre, finca, cita) a reemplazar cuando haya testimonios reales; no se inventaron nombres ni citas
+- `{{OG_IMAGE}}` (`index.html`, comentario junto al `og:image`) — imagen de 1200×630px pensada para compartir en redes, hoy apunta al ícono de la app como placeholder funcional
+
+**Verificado en navegador**: build limpio, landing completa renderiza sin errores en una pestaña nueva (sin caché de HMR — se vio ruido de errores de `Slot` en la pestaña donde se hizo el fix en caliente, confirmado como artefacto de Hot Module Replacement al abrir una pestaña nueva sin ese historial, no un bug real). Toggle de precios probado en Anual: Operativo $39.900→$28.730/mes, ahorra $134.040; Finca+ $79.900→$57.530/mes, ahorra $268.440 — matemática exacta. `/terminos` y `/privacidad` cargan el placeholder. Con sesión+finca mockeadas (solo estado de Zustand vía `setState`, sin tocar archivos ni backend), `/` renderiza el dashboard real, no la landing — confirma que el usuario autenticado no ve ningún cambio de flujo. Sin overflow horizontal en mobile (375px) ni desktop (1265px).
+
+**Build**: ✅ 3645 módulos, 0 errores.
+
+#### Pendiente para Sesión 19
+- **Reemplazar los placeholders visuales** cuando existan los assets reales — ver mapa completo arriba
+- **Contenido legal real** de `/terminos` y `/privacidad` (hoy son "Próximamente")
+- **Definir precios finales de negocio**: los valores actuales ($39.900/$79.900 y los descuentos por período) fueron los que pidió el usuario para esta sesión — confirmar que son los definitivos antes de anunciarlos públicamente
+- **`hola@hatosmart.com`** en el footer es un placeholder de contacto — confirmar que esa bandeja existe o cambiarla antes de publicar
+- **Redes sociales**: footer no tiene Instagram/Facebook (lucide-react ya no incluye íconos de marca en esta versión, y tampoco existían cuentas reales confirmadas) — agregar cuando haya cuentas reales
+- **CRÍTICO — Ejecutar en Supabase, en orden**: `030_possible_heat.sql` (y `028`/`029` si aún no corrieron)
+- **CRÍTICO — Probar el flujo completo de recuperación de contraseña con una cuenta real** (Sesión 16)
+- **Pegar los templates de `email-templates/`** en Supabase (ver `email-templates/README.md`)
+- **Tests Vitest**: sigue pendiente desde hace varias sesiones
+- **Eventos sanitarios grupales** y **detección de arete duplicado en importación masiva** (ver Sesión 8)
+
 ### Sesión 17 — Completada (13 jul 2026)
 
 **PWA `theme_color` corregido a verde de marca, y dinámico por finca**

@@ -34,13 +34,13 @@ const Button = forwardRef(function Button(
   ref
 ) {
   const Comp = asChild ? Slot : 'button'
-  return (
-    <Comp
-      ref={ref}
-      className={cn(buttonVariants({ variant, size }), className)}
-      disabled={disabled || loading}
-      {...props}
-    >
+  // Radix's Slot requires exactly one React element child — `{loading &&
+  // ...} {children}` is fine for a plain <button> (the `false` just
+  // doesn't render) but Slot counts it as a second child and throws.
+  // asChild callers pass a single element (e.g. a <Link>) and don't use
+  // `loading`, so skip the spinner wrapper entirely in that case.
+  const content = asChild ? children : (
+    <>
       {loading && (
         <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -48,6 +48,16 @@ const Button = forwardRef(function Button(
         </svg>
       )}
       {children}
+    </>
+  )
+  return (
+    <Comp
+      ref={ref}
+      className={cn(buttonVariants({ variant, size }), className)}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {content}
     </Comp>
   )
 })
