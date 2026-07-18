@@ -24,7 +24,7 @@
 //   funcional — reemplazar por una imagen de 1200×630px pensada para
 //   compartir en redes cuando exista.
 import { Link } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, LogIn } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Hero from './sections/Hero'
 import ProblemSection from './sections/ProblemSection'
@@ -38,24 +38,35 @@ import LandingFooter from './sections/LandingFooter'
 function LandingNav() {
   return (
     <header className="sticky top-0 z-40 bg-brand-dark/95 backdrop-blur border-b border-white/10">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <img src="/apple-touch-icon.png" alt="HatoSmart" className="w-8 h-8 rounded-lg" />
-          <span className="text-lg font-bold text-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+        <Link to="/" className="flex items-center gap-2 shrink-0 min-w-0">
+          <img src="/apple-touch-icon.png" alt="HatoSmart" className="w-8 h-8 rounded-lg shrink-0" />
+          <span className="text-lg font-bold text-white whitespace-nowrap">
             Hato<span className="text-brand-green">Smart</span>
           </span>
         </Link>
 
-        <nav className="flex items-center gap-2 sm:gap-4">
-          <a href="#precios" className="hidden sm:block text-sm text-white/70 hover:text-white transition-colors">
+        <nav className="flex items-center gap-1 sm:gap-4 shrink-0">
+          <a href="#precios" className="hidden sm:block text-sm text-white/70 hover:text-white transition-colors whitespace-nowrap">
             Precios
           </a>
-          <Link to="/login" className="text-sm text-white/70 hover:text-white transition-colors px-2">
+          <Link
+            to="/login"
+            aria-label="Iniciar sesión"
+            className="hidden sm:block text-sm text-white/70 hover:text-white transition-colors px-2 whitespace-nowrap"
+          >
             Iniciar sesión
           </Link>
-          <Button asChild size="sm">
+          <Link
+            to="/login"
+            aria-label="Iniciar sesión"
+            className="sm:hidden flex items-center justify-center w-9 h-9 text-white/70 hover:text-white transition-colors shrink-0"
+          >
+            <LogIn className="w-5 h-5" />
+          </Link>
+          <Button asChild size="sm" className="shrink-0 whitespace-nowrap">
             <Link to="/registro">
-              Empieza gratis <ArrowRight className="w-3.5 h-3.5" />
+              Empieza gratis <ArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
           </Button>
         </nav>
